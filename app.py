@@ -9,6 +9,19 @@ from datetime import datetime
 
 app = Flask(__name__)
 
+# Ensure templates are auto-reloaded
+app.config['TEMPLATES_AUTO_RELOAD'] = True
+
+# Set the upload folder
+UPLOAD_FOLDER = os.path.join(os.getcwd(), 'uploads')
+if not os.path.exists(UPLOAD_FOLDER):
+    os.makedirs(UPLOAD_FOLDER)
+
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+
+# Set maximum upload size to 16MB
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
+
 # Global variables to store model and encoders
 model = None
 label_encoders = {}
@@ -212,6 +225,9 @@ def predict():
         print(f"Prediction error: {str(e)}")
         return jsonify({'error': f'Prediction failed: {str(e)}'}), 500
 
+# Initialize the model when the app starts
+init_model()
+
 if __name__ == '__main__':
-    init_model()
-    app.run(debug=True)
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port, debug=False)

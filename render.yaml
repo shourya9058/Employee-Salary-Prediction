@@ -2,9 +2,13 @@ services:
   - type: web
     name: salary-prediction-app
     env: python
-    buildCommand: "pip install -r requirements.txt"
-    startCommand: "gunicorn app:app"
+    buildCommand: "./setup.sh"
+    startCommand: "gunicorn --worker-tmp-dir /dev/shm app:app"
     envVars:
       - key: PYTHON_VERSION
-        value: 3.9.13
+        value: 3.9.16
+      - key: PYTHONUNBUFFERED
+        value: true
+      - key: PYTHONDONTWRITEBYTECODE
+        value: 1
     plan: free
