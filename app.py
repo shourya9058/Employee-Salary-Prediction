@@ -26,6 +26,13 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 # Set maximum upload size to 16MB
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
 
+# Define required columns for the dataset
+required_columns = [
+    'age', 'workclass', 'education', 'education-num', 'marital-status',
+    'occupation', 'relationship', 'race', 'sex', 'capital-gain',
+    'capital-loss', 'hours-per-week', 'native-country', 'income'
+]
+
 # Global variables to store model and encoders
 model = None
 label_encoders = {}
