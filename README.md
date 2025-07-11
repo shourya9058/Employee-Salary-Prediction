@@ -1,87 +1,53 @@
-# Salary Prediction Web Application
+# Salary Prediction System
 
-A machine learning web application that predicts income levels based on demographic and employment data using a Random Forest Classifier.
+A web-based application that predicts employee salary ranges based on various demographic and employment factors using machine learning.
 
 ## Features
 
-- **Predict Income**: Input demographic and employment details to predict income levels
-- **Model Training**: Upload custom datasets to train and improve the model
+- **Interactive Form**: Input employee details to get instant salary predictions
+- **Model Training**: Upload new datasets to train and improve the prediction model
 - **Responsive Design**: Works on both desktop and mobile devices
-- **Real-time Feedback**: Get immediate predictions with confidence scores
-- **Model Management**: View model status, accuracy, and retrain with new data
-
-## Prerequisites
-
-- Python 3.9+
-- pip (Python package manager)
-- Git
+- **Visual Feedback**: Clear visualizations of prediction results and model performance
+- **Drag & Drop**: Easy file upload interface with drag and drop support
 
 ## Installation
 
-1. **Clone the repository**
+1. Clone the repository:
    ```bash
-   git clone https://github.com/yourusername/salary-prediction-app.git
-   cd salary-prediction-app
+   git clone [your-repository-url]
+   cd salary-prediction
    ```
 
-2. **Create and activate a virtual environment**
+2. Create a virtual environment (recommended):
    ```bash
-   # Windows
    python -m venv venv
-   .\venv\Scripts\activate
-   
-   # macOS/Linux
-   python3 -m venv venv
-   source venv/bin/activate
+   source venv/bin/activate  # On Windows: venv\Scripts\activate
    ```
 
-3. **Install dependencies**
+3. Install the required packages:
    ```bash
    pip install -r requirements.txt
    ```
 
-## Running Locally
+## Usage
 
-1. **Start the Flask development server**
+1. Start the Flask development server:
    ```bash
    python app.py
    ```
 
-2. **Open your browser**
-   Visit `http://localhost:5000` to access the application
+2. Open your web browser and navigate to:
+   ```
+   http://127.0.0.1:5000/
+   ```
 
-## Deployment
-
-This application is configured for deployment on [Render](https://render.com/).
-
-### Deploy to Render
-
-1. **Create a new Web Service** on Render
-2. **Connect your GitHub/GitLab repository** or deploy using the Render Dashboard
-3. **Configure the following settings**:
-   - **Build Command**: `pip install -r requirements.txt`
-   - **Start Command**: `gunicorn --worker-tmp-dir /dev/shm --workers 2 --threads 4 --bind 0.0.0.0:$PORT app:app`
-   - **Environment Variables**:
-     - `PYTHON_VERSION=3.9.16`
-     - `FLASK_ENV=production`
-
-4. **Deploy!**
+3. Use the form to input employee details and get salary predictions, or upload a new dataset to train the model.
 
 ## Project Structure
 
 ```
-salary-prediction-app/
+salary-prediction/
 ├── app.py                # Main Flask application
-├── requirements.txt      # Python dependencies
-├── runtime.txt           # Python version specification
-├── render.yaml           # Render deployment configuration
-├── Procfile             # Process file for Gunicorn
-├── static/              # Static files (CSS, JS, images)
-│   ├── script.js        # Frontend JavaScript
-│   └── style.css        # Styling
-├── templates/           # HTML templates
-│   └── index.html       # Main application page
-└── uploads/             # Directory for uploaded datasets (created at runtime)
 ├── requirements.txt      # Python dependencies
 ├── README.md            # Project documentation
 ├── static/              # Static files (CSS, JS, images)
@@ -91,30 +57,6 @@ salary-prediction-app/
 │   └── index.html       # Main application page
 └── adult 3.csv          # Sample dataset
 ```
-
-## API Documentation
-
-### Endpoints
-
-#### 1. Predict Income
-
-* **URL**: `/predict`
-* **Method**: `POST`
-* **Request Body**: JSON object with demographic and employment details
-* **Response**: JSON object with predicted income level and confidence score
-
-#### 2. Train Model
-
-* **URL**: `/train`
-* **Method**: `POST`
-* **Request Body**: JSON object with dataset details
-* **Response**: JSON object with model status and accuracy
-
-#### 3. Get Model Status
-
-* **URL**: `/model-status`
-* **Method**: `GET`
-* **Response**: JSON object with model status and accuracy
 
 ## Model
 

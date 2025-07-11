@@ -34,7 +34,7 @@ async function checkModelStatus() {
     try {
         clearInterval(modelCheckInterval);
         
-        const response = await fetch('/status'); // Changed from '/model-status' to '/status'
+        const response = await fetch('/model-status');
         if (!response.ok) {
             throw new Error('Failed to fetch model status');
         }
@@ -420,62 +420,46 @@ async function handleUpload() {
         showToast('Please select a file first', 'error');
         return;
     }
-
-    // Show required columns to user
-    const requiredColumns = [
-        'age', 'workclass', 'education', 'education-num',
-        'marital-status', 'occupation', 'relationship', 'race',
-        'sex', 'capital-gain', 'capital-loss', 'hours-per-week',
-        'native-country', 'income'
-    ];
-
+    
+    // Check file type
+    if (!file.name.endsWith('.csv')) {
+        showToast('Please upload a CSV file', 'error');
+        return;
+    }
+    
     const formData = new FormData();
     formData.append('file', file);
-
-    showLoading('Training model...', 'Please wait while we process your data');
+    
+    // Show loading state with progress
+    showLoading('Uploading and processing file...', 'This may take a few moments');
     
     try {
         const response = await fetch('/train', {
             method: 'POST',
             body: formData
         });
-
+        
         const result = await response.json();
-
+        
         if (!response.ok) {
-            let errorMsg = result.error || 'Failed to train model';
-            if (result.details) {
-                errorMsg += `: ${result.details}`;
-            }
-            throw new Error(errorMsg);
+            throw new Error(result.error || 'Failed to process file');
         }
-
+        
         showToast('Model trained successfully!', 'success');
         showModal(false);
-        checkModelStatus();
+        
+        // Update model status
+        await checkModelStatus();
+        
     } catch (error) {
         console.error('Upload error:', error);
-        let errorMsg = error.message;
-        
-        // Provide more user-friendly error messages
-        if (error.message.includes('Missing required columns')) {
-            errorMsg = 'Invalid CSV format. Please ensure your file includes all required columns.';
-            // Show the required columns to the user
-            showToast(errorMsg, 'error');
-            const columnsList = requiredColumns.map(col => `<li>${col}</li>`).join('');
-            alert(`Required columns are:\n${requiredColumns.join('\n')}`);
-        } else if (error.message.includes('Failed to fetch')) {
-            errorMsg = 'Failed to connect to the server. Please check your internet connection.';
-            showToast(errorMsg, 'error');
-        } else {
-            showToast(errorMsg, 'error');
-        }
+        showToast(error.message || 'Failed to process file. Please try again.', 'error');
     } finally {
         hideLoading();
     }
 }
 
-// ... rest of the code remains the same ...
+// Handle drag and drop
 function preventDefaults(e) {
     e.preventDefault();
     e.stopPropagation();
