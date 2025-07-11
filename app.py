@@ -72,99 +72,192 @@ def init_model():
         return "Error"
 
 def preprocess_data(df):
-    """Preprocess the input dataframe."""
-    # Handle missing values
-    df = df.replace(' ?', np.nan)
-    df = df.dropna()
+    """
+    Preprocess the input dataframe by cleaning and standardizing the data.
     
-    # Clean column names (remove extra spaces)
-    df.columns = df.columns.str.strip()
-    
-    # Clean string columns (remove extra spaces)
-    for col in df.select_dtypes(include=['object']).columns:
-        df[col] = df[col].str.strip()
-    
-    return df
+    Args:
+        df (pandas.DataFrame): Input dataframe to preprocess
+        
+    Returns:
+        pandas.DataFrame: Preprocessed dataframe
+        
+    Raises:
+        ValueError: If the dataframe is empty after preprocessing
+    """
+    try:
+        # Create a copy to avoid modifying the original dataframe
+        df = df.copy()
+        
+        # Convert column names to lowercase and replace spaces with hyphens
+        df.columns = df.columns.str.lower().str.replace(' ', '-')
+        
+        # Define columns that should be numeric
+        numeric_columns = [
+            'age', 'education-num', 'capital-gain', 
+            'capital-loss', 'hours-per-week'
+        ]
+        
+        # Convert numeric columns, handling errors
+        for col in numeric_columns:
+            if col in df.columns:
+                # Handle non-numeric values by converting them to NaN
+                df[col] = pd.to_numeric(df[col], errors='coerce')
+        
+        # Clean string columns
+        for col in df.select_dtypes(include=['object']).columns:
+            # Convert to string, handle NaN/None, and strip whitespace
+            df[col] = df[col].astype(str).str.strip()
+            
+            # Replace '?' and empty strings with NaN
+            df[col] = df[col].replace(['?', ''], pd.NA)
+        
+        # Drop rows with any remaining missing values
+        initial_rows = len(df)
+        df = df.dropna()
+        
+        # Check if we have enough data left
+        if len(df) == 0:
+            raise ValueError('No valid data remaining after preprocessing')
+            
+        if len(df) < initial_rows * 0.5:  # If we dropped more than 50% of data
+            print(f'Warning: Dropped {initial_rows - len(df)} rows during preprocessing')
+        
+        # Ensure income is binary (0/1 or <=50K/>50K)
+        if 'income' in df.columns:
+            # Convert to string and standardize the format
+            income_col = df['income'].astype(str).str.strip().str.upper()
+            
+            # Handle different possible income formats
+            mask_less = income_col.str.contains('<=|<') | income_col.str.contains('50K')
+            mask_greater = income_col.str.contains('>') | income_col.str.contains('50K\+', regex=False)
+            
+            # Convert to binary (0 for <=50K, 1 for >50K)
+            df['income'] = 0  # Default to <=50K
+            df.loc[mask_greater, 'income'] = 1
+        
+        # Ensure proper data types
+        for col in numeric_columns:
+            if col in df.columns:
+                df[col] = pd.to_numeric(df[col], errors='coerce')
+        
+        return df
+        
+    except Exception as e:
+        raise ValueError(f'Data preprocessing failed: {str(e)}')
 
 def train_model(filepath):
-    """Train the model with the given dataset file."""
-    global model, label_encoders, model_trained_on, model_accuracy
+    """
+    Train a Random Forest Classifier on the provided dataset.
     
+    Args:
+        filepath (str): Path to the CSV file containing training data
+        
+    Returns:
+        tuple: (model, label_encoders, metadata)
+        
+    Raises:
+        ValueError: If the dataset is invalid or missing required columns
+        Exception: For other unexpected errors during training
+    """
     try:
-        # Load the dataset
-        df = pd.read_csv(filepath)
+        # Read and preprocess data
+        try:
+            df = pd.read_csv(filepath, skipinitialspace=True)
+            df = preprocess_data(df)
+        except Exception as e:
+            raise ValueError(f'Error reading CSV file: {str(e)}')
         
-        # Preprocess the data
-        df = preprocess_data(df)
-        
-        # Check if required columns exist
+        # Validate columns
         required_columns = [
-            'age', 'workclass', 'education', 'education-num', 'marital-status',
-            'occupation', 'relationship', 'race', 'sex', 'capital-gain',
-            'capital-loss', 'hours-per-week', 'native-country', 'income'
+            'age', 'workclass', 'education', 'education-num',
+            'marital-status', 'occupation', 'relationship', 'race',
+            'sex', 'capital-gain', 'capital-loss', 'hours-per-week',
+            'native-country', 'income'
         ]
         
         missing_columns = [col for col in required_columns if col not in df.columns]
         if missing_columns:
-            raise ValueError(f"Missing required columns: {', '.join(missing_columns)}")
+            raise ValueError(f'Missing required columns: {", ".join(missing_columns)}')
         
-        # Split features and target
-        X = df.drop('income', axis=1)
-        y = df['income']
+        # Check for missing values
+        if df.isnull().any().any():
+            # Handle missing values
+            for col in df.columns:
+                if df[col].dtype == 'object':
+                    df[col] = df[col].fillna('Unknown')
+                else:
+                    df[col] = df[col].fillna(df[col].median())
         
         # Encode categorical variables
         label_encoders = {}
-        for column in X.select_dtypes(include=['object']).columns:
-            le = LabelEncoder()
-            X[column] = le.fit_transform(X[column].astype(str))
-            label_encoders[column] = le
+        for col in df.select_dtypes(include=['object']).columns:
+            try:
+                le = LabelEncoder()
+                df[col] = le.fit_transform(df[col].astype(str))
+                label_encoders[col] = le
+            except Exception as e:
+                raise ValueError(f'Error encoding column "{col}": {str(e)}')
         
-        # Train-test split
-        X_train, X_test, y_train, y_test = train_test_split(
-            X, y, test_size=0.2, random_state=42, stratify=y
-        )
+        # Split data
+        X = df.drop('income', axis=1)
+        y = df['income']
         
-        # Train the model with balanced class weights
-        model = RandomForestClassifier(
-            n_estimators=200,
-            max_depth=10,
-            min_samples_split=5,
-            min_samples_leaf=2,
-            class_weight='balanced',
-            random_state=42,
-            n_jobs=-1
-        )
+        # Check if we have enough samples for stratification
+        min_samples = 2  # Minimum samples needed per class for stratification
+        if len(y.unique()) < 2 or any(y.value_counts() < min_samples):
+            X_train, X_test, y_train, y_test = train_test_split(
+                X, y, test_size=0.2, random_state=42
+            )
+        else:
+            X_train, X_test, y_train, y_test = train_test_split(
+                X, y, test_size=0.2, random_state=42, stratify=y
+            )
         
-        model.fit(X_train, y_train)
+        # Train model with error handling
+        try:
+            model = RandomForestClassifier(
+                n_estimators=100,
+                max_depth=10,
+                min_samples_split=5,
+                min_samples_leaf=2,
+                random_state=42,
+                class_weight='balanced',
+                n_jobs=-1  # Use all available cores
+            )
+            
+            model.fit(X_train, y_train)
+            
+        except Exception as e:
+            raise ValueError(f'Model training failed: {str(e)}')
         
-        # Calculate accuracy and other metrics
-        y_pred = model.predict(X_test)
-        accuracy = model.score(X_test, y_test)
-        report = classification_report(y_test, y_pred, output_dict=True)
-        
-        # Get feature importances
-        feature_importances = dict(zip(X.columns, model.feature_importances_))
-        
-        # Get current timestamp
-        trained_on = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        # Evaluate model
+        try:
+            y_pred = model.predict(X_test)
+            accuracy = model.score(X_test, y_test)
+            report = classification_report(y_test, y_pred, output_dict=True)
+        except Exception as e:
+            raise ValueError(f'Model evaluation failed: {str(e)}')
         
         # Prepare metadata
         metadata = {
-            'trained_on': trained_on,
-            'accuracy': accuracy,
+            'trained_on': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            'accuracy': float(accuracy),  # Convert numpy types to native Python types
             'samples': {
-                'total': len(df),
-                'train': len(X_train),
-                'test': len(X_test)
+                'total': int(len(df)),
+                'train': int(len(X_train)),
+                'test': int(len(X_test))
             },
-            'class_distribution': dict(y.value_counts()),
-            'classification_report': report,
-            'feature_importances': feature_importances
+            'class_distribution': {
+                'train': {str(k): int(v) for k, v in y_train.value_counts().items()},
+                'test': {str(k): int(v) for k, v in y_test.value_counts().items()}
+            },
+            'feature_importances': {str(k): float(v) for k, v in zip(X.columns, model.feature_importances_)},
+            'classification_report': {
+                k: {str(k2): float(v2) if isinstance(v2, (np.floating, np.integer)) else v2 
+                   for k2, v2 in v.items()} 
+                for k, v in report.items()
+            }
         }
-        
-        # Update global variables
-        model_trained_on = trained_on
-        model_accuracy = accuracy
         
         return model, label_encoders, metadata
         
@@ -280,51 +373,72 @@ def train():
                     joblib.dump(model, 'model.joblib')
                     joblib.dump(label_encoders, 'label_encoders.joblib')
                     joblib.dump(metadata, 'model_metadata.joblib')
-                    
-                    # Prepare response
-                    response = {
-                        'message': 'Model trained successfully',
-                        'metadata': {
-                            'trained_on': model_trained_on,
-                            'accuracy': model_accuracy,
-                            'samples': metadata['samples'],
-                            'class_distribution': metadata['class_distribution']
-                        }
-                    }
-                    
-                    return jsonify(response)
-                    
-                except ValueError as ve:
-                    if os.path.exists(filepath):
-                        os.remove(filepath)  # Clean up on error
-                    return jsonify({
-                        'error': f'Training error: {str(ve)}',
-                        'details': str(ve)
-                    }), 400
-                    
-                except Exception as e:
-                    if os.path.exists(filepath):
-                        os.remove(filepath)  # Clean up on error
-                    return jsonify({
-                        'error': f'Error during model training: {str(e)}',
-                        'details': traceback.format_exc()
-                    }), 500
-                
             except Exception as e:
-                if 'filepath' in locals() and os.path.exists(filepath):
-                    os.remove(filepath)  # Clean up on error
+                if os.path.exists(filepath):
+                    os.remove(filepath)
                 return jsonify({
-                    'error': f'Error processing file: {str(e)}',
-                    'details': traceback.format_exc()
-                }), 500
+                    'status': 'error',
+                    'error': 'Invalid CSV file',
+                    'details': str(e),
+                    'required_columns': required_columns
+                }), 400
+            
+            # Train the model
+            model, encoders, metadata = train_model(filepath)
+            
+            # Save the model and metadata
+            model_path = 'model.joblib'
+            encoders_path = 'label_encoders.joblib'
+            metadata_path = 'model_metadata.joblib'
+            
+            joblib.dump(model, model_path)
+            joblib.dump(encoders, encoders_path)
+            joblib.dump(metadata, metadata_path)
+            
+            # Update global variables
+            global model_trained_on, model_accuracy
+            model_trained_on = metadata.get('trained_on')
+            model_accuracy = metadata.get('accuracy')
+            
+            # Clean up the uploaded file
+            if os.path.exists(filepath):
+                os.remove(filepath)
+            
+            return jsonify({
+                'status': 'success',
+                'message': 'Model trained successfully',
+                'accuracy': round(model_accuracy, 4) if model_accuracy is not None else None,
+                'trained_on': model_trained_on,
+                'samples': metadata.get('samples', {})
+            })
+            
+        except Exception as e:
+            # Clean up the uploaded file if there was an error
+            if 'filepath' in locals() and os.path.exists(filepath):
+                os.remove(filepath)
                 
-        else:
-            return jsonify({'error': 'Only CSV files are allowed'}), 400
+            error_details = str(e)
+            if 'Missing required columns' in error_details:
+                return jsonify({
+                    'status': 'error',
+                    'error': 'Missing required columns in CSV',
+                    'details': error_details,
+                    'required_columns': required_columns
+                }), 400
+                
+            return jsonify({
+                'status': 'error',
+                'error': 'Error training model',
+                'details': error_details,
+                'traceback': traceback.format_exc() if app.debug else None
+            }), 500
             
     except Exception as e:
         return jsonify({
-            'error': f'Unexpected error: {str(e)}',
-            'details': traceback.format_exc()
+            'status': 'error',
+            'error': 'Unexpected error',
+            'details': str(e),
+            'traceback': traceback.format_exc() if app.debug else None
         }), 500
 
 @app.route('/predict', methods=['POST'])

@@ -2,6 +2,11 @@ __pycache__/
 *.py[cod]
 *$py.class
 *.so
+.# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
 .Python
 build/
 develop-eggs/
@@ -22,12 +27,17 @@ wheels/
 # Virtual Environment
 venv/
 env/
+ENV/
 
 # IDE
-.vscode/
 .idea/
+.vscode/
+*.swp
+*.swo
+*~
 
-# Dataset files
+# Project specific
+uploads/
 *.csv
 
 # Model files
