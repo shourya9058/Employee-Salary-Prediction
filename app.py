@@ -129,7 +129,7 @@ def preprocess_data(df):
             
             # Handle different possible income formats
             mask_less = income_col.str.contains('<=|<') | income_col.str.contains('50K')
-            mask_greater = income_col.str.contains('>') | income_col.str.contains('50K\+', regex=False)
+            mask_greater = income_col.str.contains('>') | income_col.str.contains(r'50K\+', regex=True)
             
             # Convert to binary (0 for <=50K, 1 for >50K)
             df['income'] = 0  # Default to <=50K
@@ -327,111 +327,92 @@ def train():
     try:
         # Check if the post request has the file part
         if 'file' not in request.files:
-            return jsonify({'error': 'No file part in the request'}), 400
+            return jsonify({'status': 'error', 'error': 'No file part in the request'}), 400
             
         file = request.files['file']
         
         # If user does not select file, browser also
         # submit an empty part without filename
         if file.filename == '':
-            return jsonify({'error': 'No file selected'}), 400
+            return jsonify({'status': 'error', 'error': 'No file selected'}), 400
             
         if file and file.filename.lower().endswith('.csv'):
+            # Create uploads directory if it doesn't exist
+            if not os.path.exists(app.config['UPLOAD_FOLDER']):
+                os.makedirs(app.config['UPLOAD_FOLDER'])
+            
+            # Save the uploaded file with a secure filename
+            filename = secure_filename(file.filename)
+            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            file.save(filepath)
+            
+            # Read the CSV to validate it
             try:
-                # Create uploads directory if it doesn't exist
-                if not os.path.exists(app.config['UPLOAD_FOLDER']):
-                    os.makedirs(app.config['UPLOAD_FOLDER'])
-                
-                # Save the uploaded file with a secure filename
-                filename = secure_filename(file.filename)
-                filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-                file.save(filepath)
-                
-                # Read the CSV to validate it
-                try:
-                    df = pd.read_csv(filepath)
-                    if len(df) == 0:
-                        os.remove(filepath)  # Clean up empty file
-                        return jsonify({'error': 'The uploaded CSV file is empty'}), 400
-                except Exception as e:
-                    if os.path.exists(filepath):
-                        os.remove(filepath)  # Clean up invalid file
-                    return jsonify({'error': f'Error reading CSV file: {str(e)}'}), 400
-                
-                # Train the model with the new dataset
-                global model, label_encoders, model_metadata, model_trained_on, model_accuracy
-                
-                try:
-                    model, label_encoders, metadata = train_model(filepath)
-                    
-                    # Update global variables
-                    model_metadata = metadata
-                    model_trained_on = metadata['trained_on']
-                    model_accuracy = metadata['accuracy']
-                    
-                    # Save the trained model and encoders
-                    joblib.dump(model, 'model.joblib')
-                    joblib.dump(label_encoders, 'label_encoders.joblib')
-                    joblib.dump(metadata, 'model_metadata.joblib')
+                df = pd.read_csv(filepath)
+                if len(df) == 0:
+                    os.remove(filepath)  # Clean up empty file
+                    return jsonify({'status': 'error', 'error': 'The uploaded CSV file is empty'}), 400
             except Exception as e:
                 if os.path.exists(filepath):
+                    os.remove(filepath)  # Clean up invalid file
+                return jsonify({'status': 'error', 'error': f'Error reading CSV file: {str(e)}'}), 400
+            
+            # Train the model with the new dataset
+            global model, label_encoders, model_metadata, model_trained_on, model_accuracy
+            
+            try:
+                # Train the model
+                model, label_encoders, metadata = train_model(filepath)
+                
+                # Save the model and metadata
+                model_path = 'model.joblib'
+                encoders_path = 'label_encoders.joblib'
+                metadata_path = 'model_metadata.joblib'
+                
+                joblib.dump(model, model_path)
+                joblib.dump(label_encoders, encoders_path)
+                joblib.dump(metadata, metadata_path)
+                
+                # Update global variables
+                model_metadata = metadata
+                model_trained_on = metadata.get('trained_on')
+                model_accuracy = metadata.get('accuracy')
+                
+                # Clean up the uploaded file
+                if os.path.exists(filepath):
                     os.remove(filepath)
-                return jsonify({
-                    'status': 'error',
-                    'error': 'Invalid CSV file',
-                    'details': str(e),
-                    'required_columns': required_columns
-                }), 400
-            
-            # Train the model
-            model, encoders, metadata = train_model(filepath)
-            
-            # Save the model and metadata
-            model_path = 'model.joblib'
-            encoders_path = 'label_encoders.joblib'
-            metadata_path = 'model_metadata.joblib'
-            
-            joblib.dump(model, model_path)
-            joblib.dump(encoders, encoders_path)
-            joblib.dump(metadata, metadata_path)
-            
-            # Update global variables
-            global model_trained_on, model_accuracy
-            model_trained_on = metadata.get('trained_on')
-            model_accuracy = metadata.get('accuracy')
-            
-            # Clean up the uploaded file
-            if os.path.exists(filepath):
-                os.remove(filepath)
-            
-            return jsonify({
-                'status': 'success',
-                'message': 'Model trained successfully',
-                'accuracy': round(model_accuracy, 4) if model_accuracy is not None else None,
-                'trained_on': model_trained_on,
-                'samples': metadata.get('samples', {})
-            })
-            
-        except Exception as e:
-            # Clean up the uploaded file if there was an error
-            if 'filepath' in locals() and os.path.exists(filepath):
-                os.remove(filepath)
                 
-            error_details = str(e)
-            if 'Missing required columns' in error_details:
+                return jsonify({
+                    'status': 'success',
+                    'message': 'Model trained successfully',
+                    'accuracy': round(model_accuracy, 4) if model_accuracy is not None else None,
+                    'trained_on': model_trained_on,
+                    'samples': metadata.get('samples', {})
+                })
+                
+            except Exception as e:
+                # Clean up the uploaded file if there was an error
+                if 'filepath' in locals() and os.path.exists(filepath):
+                    os.remove(filepath)
+                    
+                error_details = str(e)
+                if 'Missing required columns' in error_details:
+                    return jsonify({
+                        'status': 'error',
+                        'error': 'Missing required columns in CSV',
+                        'details': error_details,
+                        'required_columns': required_columns
+                    }), 400
+                    
                 return jsonify({
                     'status': 'error',
-                    'error': 'Missing required columns in CSV',
+                    'error': 'Error training model',
                     'details': error_details,
-                    'required_columns': required_columns
-                }), 400
+                    'traceback': traceback.format_exc() if app.debug else None
+                }), 500
                 
-            return jsonify({
-                'status': 'error',
-                'error': 'Error training model',
-                'details': error_details,
-                'traceback': traceback.format_exc() if app.debug else None
-            }), 500
+        else:
+            return jsonify({'status': 'error', 'error': 'Only CSV files are allowed'}), 400
             
     except Exception as e:
         return jsonify({
