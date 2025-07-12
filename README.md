@@ -13,8 +13,9 @@ A web-based application that predicts employee salary ranges based on various de
 ## Local Development
 
 ### Prerequisites
-- Python 3.8+
+- Python 3.10.8 (recommended)
 - pip (Python package manager)
+- Git
 
 ### Installation
 
