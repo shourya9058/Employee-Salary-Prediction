@@ -423,7 +423,14 @@ async function handleUpload() {
     
     // Check file type
     if (!file.name.endsWith('.csv')) {
-        showToast('Please upload a CSV file', 'error');
+        showToast('Please upload a CSV file with .csv extension', 'error');
+        return;
+    }
+    
+    // Check file size (max 10MB)
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    if (file.size > maxSize) {
+        showToast('File is too large. Maximum size is 10MB', 'error');
         return;
     }
     
@@ -436,24 +443,51 @@ async function handleUpload() {
     try {
         const response = await fetch('/train', {
             method: 'POST',
-            body: formData
+            body: formData,
+            headers: {
+                'Accept': 'application/json'
+            }
         });
+        
+        // Check if response is JSON
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            const text = await response.text();
+            console.error('Non-JSON response:', text);
+            throw new Error('Server returned an invalid response');
+        }
         
         const result = await response.json();
         
         if (!response.ok) {
-            throw new Error(result.error || 'Failed to process file');
+            throw new Error(result.error || `Server error: ${response.status} ${response.statusText}`);
         }
         
         showToast('Model trained successfully!', 'success');
-        showModal(false);
         
-        // Update model status
-        await checkModelStatus();
+        // Reset file input
+        fileInput.value = '';
+        fileName.textContent = 'No file selected';
+        
+        // Close modal after a short delay
+        setTimeout(() => {
+            showModal(false);
+            // Update model status
+            checkModelStatus();
+        }, 1000);
         
     } catch (error) {
         console.error('Upload error:', error);
-        showToast(error.message || 'Failed to process file. Please try again.', 'error');
+        let errorMessage = error.message || 'Failed to process file. Please try again.';
+        
+        // More specific error messages
+        if (error.message.includes('Failed to fetch')) {
+            errorMessage = 'Unable to connect to the server. Please check your connection.';
+        } else if (error.message.includes('Unexpected token')) {
+            errorMessage = 'Server returned an invalid response. Please try again.';
+        }
+        
+        showToast(errorMessage, 'error');
     } finally {
         hideLoading();
     }

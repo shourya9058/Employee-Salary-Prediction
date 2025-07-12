@@ -5,9 +5,28 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.preprocessing import LabelEncoder
 import joblib
 import os
+import logging
 from datetime import datetime
+from logging.handlers import RotatingFileHandler
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
+# Create a file handler
+handler = RotatingFileHandler('app.log', maxBytes=10000, backupCount=3)
+handler.setLevel(logging.INFO)
+
+# Create a logging format
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+handler.setFormatter(formatter)
+
+# Add the handlers to the logger
+logger.addHandler(handler)
 
 app = Flask(__name__)
+app.logger.addHandler(handler)
 
 # Global variables to store model and encoders
 model = None
@@ -101,6 +120,17 @@ def train_model(df):
 def home():
     return render_template('index.html')
 
+# Test route to verify server is working
+@app.route('/test')
+def test():
+    return jsonify({
+        'status': 'success',
+        'message': 'Server is running',
+        'python_version': '3.10.8',
+        'flask_version': '2.0.1',
+        'system_time': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    })
+
 # Serve static files
 @app.route('/static/<path:path>')
 def serve_static(path):
@@ -119,34 +149,59 @@ def get_model_status():
 
 @app.route('/train', methods=['POST'])
 def train():
+    # Check if the post request has the file part
     if 'file' not in request.files:
-        return jsonify({'error': 'No file part'}), 400
+        app.logger.error('No file part in the request')
+        return jsonify({'error': 'No file part in the request'}), 400
     
     file = request.files['file']
+    
+    # If the user does not select a file, the browser submits an empty file
     if file.filename == '':
-        return jsonify({'error': 'No selected file'}), 400
+        app.logger.error('No file selected')
+        return jsonify({'error': 'No file selected'}), 400
+    
+    # Check if the file has an allowed extension
+    allowed_extensions = {'csv'}
+    if '.' not in file.filename or file.filename.rsplit('.', 1)[1].lower() not in allowed_extensions:
+        app.logger.error(f'Invalid file type: {file.filename}')
+        return jsonify({'error': 'Unsupported file format. Please upload a CSV file.'}), 400
     
     try:
-        # Read the file
-        if file.filename.endswith('.csv'):
+        app.logger.info(f'Processing file: {file.filename}')
+        
+        # Read the file into a pandas DataFrame
+        try:
             df = pd.read_csv(file)
-        else:
-            return jsonify({'error': 'Unsupported file format. Please upload a CSV file.'}), 400
+            app.logger.info(f'Successfully read CSV file with shape: {df.shape}')
+        except Exception as e:
+            app.logger.error(f'Error reading CSV file: {str(e)}')
+            return jsonify({'error': f'Error reading CSV file: {str(e)}'}), 400
+        
+        # Check if the required column exists
+        if 'income' not in df.columns:
+            app.logger.error("CSV file must contain an 'income' column")
+            return jsonify({'error': "CSV file must contain an 'income' column"}), 400
         
         # Train the model
+        app.logger.info('Starting model training...')
         result = train_model(df)
         
         if 'error' in result:
+            app.logger.error(f'Error in model training: {result["error"]}')
             return jsonify({'error': result['error']}), 400
+        
+        app.logger.info(f'Model training completed successfully. Accuracy: {result["accuracy"]:.2f}')
             
         return jsonify({
             'message': result['message'],
             'accuracy': result['accuracy'],
             'trained_on': result['trained_on']
         })
+        
     except Exception as e:
-        print(f"Error in train endpoint: {str(e)}")
-        return jsonify({'error': f'Error processing file: {str(e)}'}), 500
+        app.logger.error(f'Unexpected error in train endpoint: {str(e)}', exc_info=True)
+        return jsonify({'error': 'An unexpected error occurred while processing your request'}), 500
 
 @app.route('/predict', methods=['POST'])
 def predict():
