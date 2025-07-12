@@ -10,7 +10,13 @@ A web-based application that predicts employee salary ranges based on various de
 - **Visual Feedback**: Clear visualizations of prediction results and model performance
 - **Drag & Drop**: Easy file upload interface with drag and drop support
 
-## Installation
+## Local Development
+
+### Prerequisites
+- Python 3.8+
+- pip (Python package manager)
+
+### Installation
 
 1. Clone the repository:
    ```bash
@@ -18,10 +24,15 @@ A web-based application that predicts employee salary ranges based on various de
    cd salary-prediction
    ```
 
-2. Create a virtual environment (recommended):
+2. Create and activate a virtual environment:
    ```bash
+   # Windows
    python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
+   .\venv\Scripts\activate
+   
+   # Mac/Linux
+   python3 -m venv venv
+   source venv/bin/activate
    ```
 
 3. Install the required packages:
@@ -29,7 +40,7 @@ A web-based application that predicts employee salary ranges based on various de
    pip install -r requirements.txt
    ```
 
-## Usage
+### Usage
 
 1. Start the Flask development server:
    ```bash
@@ -43,11 +54,34 @@ A web-based application that predicts employee salary ranges based on various de
 
 3. Use the form to input employee details and get salary predictions, or upload a new dataset to train the model.
 
+## Deployment to Render
+
+1. **Create a new Web Service** on Render and connect to your GitHub/GitLab repository.
+
+2. Configure the following settings:
+   - **Build Command**: `pip install -r requirements.txt`
+   - **Start Command**: `gunicorn app:app`
+   - **Python Version**: 3.8 or higher
+
+3. Add the following environment variables if needed:
+   - `PYTHON_VERSION`: 3.8 (or your preferred version)
+   - `PORT`: 10000 (or any available port)
+
+4. Click **Create Web Service** to deploy your application.
+
 ## Project Structure
 
 ```
 salary-prediction/
 ├── app.py                # Main Flask application
+├── Procfile             # Render deployment configuration
+├── requirements.txt     # Python dependencies
+├── static/              # Static files (CSS, JS, images)
+│   ├── script.js       # Frontend JavaScript
+│   └── style.css       # Styling
+├── templates/           # HTML templates
+│   └── index.html      # Main application page
+└── README.md           # Project documentation
 ├── requirements.txt      # Python dependencies
 ├── README.md            # Project documentation
 ├── static/              # Static files (CSS, JS, images)
