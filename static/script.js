@@ -105,24 +105,30 @@ function setupEventListeners() {
     
     // File upload handling
     if (dropZone) {
-        // Drag and drop events
+        // Prevent default drag behaviors
         ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
             dropZone.addEventListener(eventName, preventDefaults, false);
         });
         
+        // Highlight drop zone when item is dragged over it
         ['dragenter', 'dragover'].forEach(eventName => {
             dropZone.addEventListener(eventName, highlight, false);
         });
         
+        // Remove highlight when item is not dragged over dropzone
         ['dragleave', 'drop'].forEach(eventName => {
             dropZone.addEventListener(eventName, unhighlight, false);
         });
         
+        // Handle dropped files
         dropZone.addEventListener('drop', handleDrop, false);
         
-        // Click to select file
-        dropZone.addEventListener('click', () => {
-            fileInput.click();
+        // Handle click on drop zone to open file dialog
+        dropZone.addEventListener('click', (e) => {
+            // Only trigger file input if the click is not on a child element that should handle its own clicks
+            if (e.target === dropZone) {
+                fileInput.click();
+            }
         });
     }
     
@@ -427,18 +433,11 @@ async function handleUpload() {
         return;
     }
     
-    // Check file size (max 10MB)
-    const maxSize = 10 * 1024 * 1024; // 10MB
-    if (file.size > maxSize) {
-        showToast('File is too large. Maximum size is 10MB', 'error');
-        return;
-    }
+    // Show loading state with progress
+    showLoading('Uploading and processing file...', 'This may take a few moments');
     
     const formData = new FormData();
     formData.append('file', file);
-    
-    // Show loading state with progress
-    showLoading('Uploading and processing file...', 'This may take a few moments');
     
     try {
         const response = await fetch('/train', {
@@ -449,42 +448,49 @@ async function handleUpload() {
             }
         });
         
-        // Check if response is JSON
-        const contentType = response.headers.get('content-type');
-        if (!contentType || !contentType.includes('application/json')) {
-            const text = await response.text();
-            console.error('Non-JSON response:', text);
-            throw new Error('Server returned an invalid response');
+        let result;
+        try {
+            // Try to parse as JSON
+            result = await response.json();
+        } catch (jsonError) {
+            console.error('Failed to parse JSON response:', jsonError);
+            throw new Error('Server returned an invalid response. Please try again.');
         }
         
-        const result = await response.json();
-        
-        if (!response.ok) {
-            throw new Error(result.error || `Server error: ${response.status} ${response.statusText}`);
+        // Check if the response indicates an error
+        if (!response.ok || result.status === 'error') {
+            const errorMessage = result.message || `Server error: ${response.status} ${response.statusText}`;
+            throw new Error(errorMessage);
         }
         
-        showToast('Model trained successfully!', 'success');
+        // If we get here, the request was successful
+        showToast(result.message || 'Model trained successfully!', 'success');
         
         // Reset file input
         fileInput.value = '';
-        fileName.textContent = 'No file selected';
+        if (fileName) {
+            fileName.textContent = 'No file selected';
+        }
         
         // Close modal after a short delay
         setTimeout(() => {
             showModal(false);
             // Update model status
             checkModelStatus();
-        }, 1000);
+        }, 1500);
         
     } catch (error) {
         console.error('Upload error:', error);
-        let errorMessage = error.message || 'Failed to process file. Please try again.';
         
         // More specific error messages
+        let errorMessage = error.message || 'Failed to process file. Please try again.';
+        
         if (error.message.includes('Failed to fetch')) {
             errorMessage = 'Unable to connect to the server. Please check your connection.';
         } else if (error.message.includes('Unexpected token')) {
             errorMessage = 'Server returned an invalid response. Please try again.';
+        } else if (error.message.includes('NetworkError')) {
+            errorMessage = 'Network error. Please check your internet connection.';
         }
         
         showToast(errorMessage, 'error');
@@ -520,10 +526,17 @@ function handleDrop(e) {
 function handleFileSelect(e) {
     const files = e.target.files;
     
-    if (files.length) {
+    if (files && files.length) {
         const file = files[0];
-        fileName.textContent = file.name;
-        uploadSubmit.disabled = false;
+        if (fileName) {
+            fileName.textContent = file.name;
+        }
+        if (uploadSubmit) {
+            uploadSubmit.disabled = false;
+        }
+        
+        // Stop propagation to prevent the click event from bubbling up
+        e.stopPropagation();
     }
 }
 

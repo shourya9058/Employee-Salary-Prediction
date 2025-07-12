@@ -60,21 +60,11 @@
                         </div>
                         
                         <div>
-                            <label class="block text-gray-700 text-sm font-medium mb-2" for="educational-num">Education Level (numeric)</label>
-                            <select id="educational-num" name="educational-num" class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" required>
-                                <option value="">Select Education Level</option>
-                                <option value="16">Doctorate</option>
-                                <option value="15">Masters</option>
-                                <option value="14">Bachelors</option>
-                                <option value="13">Associate (academic)</option>
-                                <option value="12">Associate (vocational)</option>
-                                <option value="11">Some college</option>
-                                <option value="9">High school graduate</option>
-                                <option value="7">9th to 12th grade (no diploma)</option>
-                                <option value="5">5th to 8th grade</option>
-                                <option value="2">1st to 4th grade</option>
-                                <option value="1">Preschool</option>
-                            </select>
+                            <label class="block text-gray-700 text-sm font-medium mb-2" for="educational-num">Years of Education</label>
+                            <input type="number" id="educational-num" name="educational-num" min="1" max="16" 
+                                   class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" 
+                                   placeholder="Enter years (1-16)" required>
+                            <p class="text-xs text-gray-500 mt-1">Enter number of years of education (e.g., 9 for High School, 16 for Doctorate)</p>
                         </div>
                         <div>
                             <label class="block text-gray-700 text-sm font-medium mb-2" for="education">Education</label>
