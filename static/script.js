@@ -104,10 +104,11 @@ function setupEventListeners() {
     }
     
     // File upload handling
-    if (dropZone) {
+    if (dropZone && fileInput) {
         // Prevent default drag behaviors
         ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
             dropZone.addEventListener(eventName, preventDefaults, false);
+            document.body.addEventListener(eventName, preventDefaults, false);
         });
         
         // Highlight drop zone when item is dragged over it
@@ -115,7 +116,7 @@ function setupEventListeners() {
             dropZone.addEventListener(eventName, highlight, false);
         });
         
-        // Remove highlight when item is not dragged over dropzone
+        // Remove highlight when item leaves drop zone
         ['dragleave', 'drop'].forEach(eventName => {
             dropZone.addEventListener(eventName, unhighlight, false);
         });
@@ -123,18 +124,8 @@ function setupEventListeners() {
         // Handle dropped files
         dropZone.addEventListener('drop', handleDrop, false);
         
-        // Handle click on drop zone to open file dialog
-        dropZone.addEventListener('click', (e) => {
-            // Only trigger file input if the click is not on a child element that should handle its own clicks
-            if (e.target === dropZone) {
-                fileInput.click();
-            }
-        });
-    }
-    
-    // File input change
-    if (fileInput) {
-        fileInput.addEventListener('change', handleFileSelect);
+        // Handle file selection via the file input
+        fileInput.addEventListener('change', handleFileSelect, false);
     }
     
     // Upload submit button
@@ -526,17 +517,10 @@ function handleDrop(e) {
 function handleFileSelect(e) {
     const files = e.target.files;
     
-    if (files && files.length) {
+    if (files.length) {
         const file = files[0];
-        if (fileName) {
-            fileName.textContent = file.name;
-        }
-        if (uploadSubmit) {
-            uploadSubmit.disabled = false;
-        }
-        
-        // Stop propagation to prevent the click event from bubbling up
-        e.stopPropagation();
+        fileName.textContent = file.name;
+        uploadSubmit.disabled = false;
     }
 }
 

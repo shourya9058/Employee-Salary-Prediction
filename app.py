@@ -14,13 +14,8 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
-# Create logs directory if it doesn't exist
-if not os.path.exists('logs'):
-    os.makedirs('logs')
-
 # Create a file handler
-log_file = os.path.join('logs', 'app.log')
-handler = RotatingFileHandler(log_file, maxBytes=10000, backupCount=3)
+handler = RotatingFileHandler('app.log', maxBytes=10000, backupCount=3)
 handler.setLevel(logging.INFO)
 
 # Create a logging format
@@ -30,16 +25,8 @@ handler.setFormatter(formatter)
 # Add the handlers to the logger
 logger.addHandler(handler)
 
-app = Flask(__name__, static_folder='static', template_folder='templates')
+app = Flask(__name__)
 app.logger.addHandler(handler)
-
-# Configuration for production
-app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024  # 10MB file size limit
-app.config['UPLOAD_FOLDER'] = os.path.join(app.root_path, 'uploads')
-
-# Create uploads directory if it doesn't exist
-if not os.path.exists(app.config['UPLOAD_FOLDER']):
-    os.makedirs(app.config['UPLOAD_FOLDER'])
 
 # Global variables to store model and encoders
 model = None
