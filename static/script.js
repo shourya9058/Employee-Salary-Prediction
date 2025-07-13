@@ -34,7 +34,7 @@ async function checkModelStatus() {
     try {
         clearInterval(modelCheckInterval);
         
-        const response = await fetch('/model-status');
+        const response = await fetch('/api/model-status');
         if (!response.ok) {
             throw new Error('Failed to fetch model status');
         }
@@ -280,7 +280,7 @@ async function handlePrediction(e) {
         });
         
         // Make the prediction request
-        const response = await fetch('/predict', {
+        const response = await fetch('/api/predict', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(requestData)
@@ -431,7 +431,7 @@ async function handleUpload() {
     formData.append('file', file);
     
     try {
-        const response = await fetch('/train', {
+        const response = await fetch('/api/train', {
             method: 'POST',
             body: formData,
             headers: {

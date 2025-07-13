@@ -178,15 +178,20 @@ def train_model(df):
 def home():
     return render_template('index.html')
 
+# Serve index.html for all other routes to support client-side routing
+@app.route('/<path:path>')
+def catch_all(path):
+    return render_template('index.html')
+
 # Test route to verify server is working
-@app.route('/test')
+@app.route('/api/test')
 def test():
     return jsonify({
-        'status': 'success',
-        'message': 'Server is running',
+        'status': 'ok',
         'python_version': '3.10.8',
         'flask_version': '2.0.1',
-        'system_time': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        'model_loaded': model is not None,
+        'trained_on': model_trained_on
     })
 
 # Serve static files
@@ -195,7 +200,7 @@ def serve_static(path):
     return send_from_directory('static', path)
 
 # Model status endpoint
-@app.route('/model-status')
+@app.route('/api/model-status')
 def get_model_status():
     status = init_model()
     return jsonify({
@@ -205,7 +210,7 @@ def get_model_status():
         'features': list(label_encoders.keys()) if label_encoders else []
     })
 
-@app.route('/train', methods=['POST'])
+@app.route('/api/train', methods=['POST'])
 def train():
     # Check if the post request has the file part
     if 'file' not in request.files:
@@ -309,7 +314,7 @@ def train():
             'message': 'An unexpected error occurred while processing your request. Please try again.'
         }), 500
 
-@app.route('/predict', methods=['POST'])
+@app.route('/api/predict', methods=['POST'])
 def predict():
     # Initialize model if not already done
     init_model()
