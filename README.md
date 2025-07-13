@@ -1,113 +1,123 @@
-# Salary Prediction System
+# 💼 Salary Prediction System
 
-A web-based application that predicts employee salary ranges based on various demographic and employment factors using machine learning.
+An intelligent web-based application that predicts employee salary ranges based on demographic and employment details, leveraging the power of **Machine Learning** and a seamless **Flask** web interface.
 
-## Features
+Designed with a focus on interactivity, automation, and scalability — this project combines clean UI with robust model training capabilities.
 
-- **Interactive Form**: Input employee details to get instant salary predictions
-- **Model Training**: Upload new datasets to train and improve the prediction model
-- **Responsive Design**: Works on both desktop and mobile devices
-- **Visual Feedback**: Clear visualizations of prediction results and model performance
-- **Drag & Drop**: Easy file upload interface with drag and drop support
+---
 
-## Local Development
+## 🚀 Features
 
-### Prerequisites
-- Python 3.10.8 (recommended)
-- pip (Python package manager)
+- 🎯 **Real-time Salary Prediction**  
+  Enter employee details and get instant, AI-powered salary range predictions.
+
+- 📊 **Model Training from CSV**  
+  Upload your own datasets to train or retrain the model dynamically via the UI.
+
+- 🎨 **Responsive UI/UX**  
+  Mobile-friendly layout with smooth visuals and clear feedback for every interaction.
+
+- 📂 **Drag & Drop Upload**  
+  User-friendly file upload system that supports drag & drop functionality.
+
+- 📈 **Accuracy Logging & Visual Feedback**  
+  Backend logging with real-time model performance insights (e.g., accuracy score).
+
+---
+
+## 🧠 Machine Learning Model
+
+- **Algorithm Used:** Random Forest Classifier  
+- **Target Output:** Predict whether an employee earns above or below a salary threshold (classification).  
+- **Trained On:**  
+  - Age  
+  - Work Class  
+  - Education  
+  - Occupation  
+  - Marital Status  
+  - Hours per Week
+
+---
+
+## 🛠️ Tech Stack
+
+| Area            | Technologies                       |
+|-----------------|------------------------------------|
+| Language        | Python 3.10.8                      |
+| Framework       | Flask                              |
+| ML Model        | Scikit-learn (Random Forest)       |
+| Frontend        | HTML5, CSS3, JavaScript            |
+| Deployment      | Render (Gunicorn for production)   |
+| Dev Tools       | Git, VS Code, Postman              |
+
+---
+
+## 🧪 Local Development
+
+### 🔧 Prerequisites
+- Python 3.10.8 (or higher)
+- `pip`
 - Git
 
-### Installation
+### 📦 Installation Steps
 
-1. Clone the repository:
-   ```bash
-   git clone [your-repository-url]
-   cd salary-prediction
-   ```
+```bash
+# Clone the repository
+git clone https://github.com/shourya9058/Employee-Salary-Prediction.git
+cd Employee-Salary-Prediction
 
-2. Create and activate a virtual environment:
-   ```bash
-   # Windows
-   python -m venv venv
-   .\venv\Scripts\activate
-   
-   # Mac/Linux
-   python3 -m venv venv
-   source venv/bin/activate
-   ```
+# Create and activate a virtual environment
+python -m venv venv
+.\venv\Scripts\activate  # On Windows
+# source venv/bin/activate  # On Mac/Linux
 
-3. Install the required packages:
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-### Usage
-
-1. Start the Flask development server:
-   ```bash
-   python app.py
-   ```
-
-2. Open your web browser and navigate to:
-   ```
-   http://127.0.0.1:5000/
-   ```
-
-3. Use the form to input employee details and get salary predictions, or upload a new dataset to train the model.
-
-## Deployment to Render
-
-1. **Create a new Web Service** on Render and connect to your GitHub/GitLab repository.
-
-2. Configure the following settings:
-   - **Build Command**: `pip install -r requirements.txt`
-   - **Start Command**: `gunicorn app:app`
-   - **Python Version**: 3.8 or higher
-
-3. Add the following environment variables if needed:
-   - `PYTHON_VERSION`: 3.8 (or your preferred version)
-   - `PORT`: 10000 (or any available port)
-
-4. Click **Create Web Service** to deploy your application.
-
-## Project Structure
-
+# Install dependencies
+pip install -r requirements.txt
 ```
-salary-prediction/
-├── app.py                # Main Flask application
-├── Procfile             # Render deployment configuration
-├── requirements.txt     # Python dependencies
-├── static/              # Static files (CSS, JS, images)
-│   ├── script.js       # Frontend JavaScript
-│   └── style.css       # Styling
-├── templates/           # HTML templates
-│   └── index.html      # Main application page
-└── README.md           # Project documentation
-├── requirements.txt      # Python dependencies
-├── README.md            # Project documentation
-├── static/              # Static files (CSS, JS, images)
-│   ├── script.js        # Frontend JavaScript
-│   └── style.css        # Custom styles
-├── templates/           # HTML templates
-│   └── index.html       # Main application page
-└── adult 3.csv          # Sample dataset
+🚀 Running the App Locally
+```bash
+python app.py
+Visit: http://127.0.0.1:5000/
+Start predicting or upload a CSV to train a new model.
 ```
+🌐 Deployment (Render)
+Connect this repo on Render.
 
-## Model
+Set up a new Web Service with these settings:
 
-The application uses a Random Forest Classifier for salary prediction. The model is trained on the following features:
+```bash
+Build Command:   pip install -r requirements.txt
+Start Command:   gunicorn app:app
+Python Version:  3.8+ (or your preferred)
+Add environment variables if needed (PORT, etc.)
 
-- Age
-- Work Class
-- Education
-- Occupation
-- Marital Status
-- Hours per Week
+Click "Deploy" and you're live!
+```
+📁 Project Structure
+```bash
+Employee-Salary-Prediction/
+├── app.py                 # Main Flask app
+├── requirements.txt       # Python dependencies
+├── Procfile               # Deployment instructions
+├── templates/             # HTML (Jinja2 templates)
+│   └── index.html
+├── static/                # CSS & JS assets
+│   ├── style.css
+│   └── script.js
+├── model.joblib           # Trained ML model
+├── adult 3.csv            # Sample dataset
+└── README.md              # Project documentation
+```
+🙌 Contribution Guidelines
+Pull requests, feedback, and improvements are welcome.
+If you find a bug or have suggestions, feel free to open an issue or PR.
 
-## Contributing
+📜 License
+This project is licensed under the MIT License.
+See LICENSE for more details.
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+🔗 Useful Links
 
-## License
+🔴 Live App: https://employee-salary-prediction-6b7x.onrender.com
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+🌐 Developer's Portfolio: https://shouryas-portfolio.onrender.com/
