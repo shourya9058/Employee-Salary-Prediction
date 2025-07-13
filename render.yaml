@@ -1,0 +1,8 @@
+services:
+  - type: web
+    name: salary-prediction
+    env: python
+    python:
+      version: 3.10.8
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app
