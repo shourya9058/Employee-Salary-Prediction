@@ -124,12 +124,18 @@ def train_model(df):
             
             # Train model with error handling
             try:
+                # Create a simpler model configuration to avoid version conflicts
                 model = RandomForestClassifier(
-                    n_estimators=100,
+                    n_estimators=50,  # Reduced number of estimators for faster training
+                    max_depth=10,     # Limit tree depth
+                    min_samples_split=5,  # Minimum samples required to split a node
+                    min_samples_leaf=2,   # Minimum samples required at a leaf node
                     random_state=42,
-                    n_jobs=-1,
-                    verbose=1
+                    n_jobs=1,        # Set to 1 to avoid parallel processing issues
+                    verbose=0         # Disable verbose output to prevent logging issues
                 )
+                
+                # Fit the model with progress updates
                 model.fit(X_train, y_train)
                 
                 # Calculate accuracy
