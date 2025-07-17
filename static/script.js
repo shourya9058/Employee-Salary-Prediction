@@ -342,62 +342,98 @@ async function handlePrediction(e) {
 
 // Display prediction result
 function displayPredictionResult(result) {
-    const resultDiv = document.getElementById('result');
+    const initialPlaceholder = document.getElementById('initialResultPlaceholder');
+    const predictionResultArea = document.getElementById('predictionResultArea');
+    const predictionTextDiv = document.getElementById('predictionText');
+    const predictionDetailsDiv = document.getElementById('predictionDetails');
+    const chartCanvas = document.getElementById('confidenceChart');
+    
     const confidence = result.confidence ? Math.round(result.confidence * 100) : 0;
-    const isHighIncome = (result.prediction && (result.prediction.toString().includes('>50K') || result.prediction.toString() === '1')) || 
-                        (result.class !== undefined && (result.class === 1 || result.class === '>50K'));
-    
-    // Ensure we have valid confidence value
-    const validConfidence = Math.min(Math.max(confidence, 0), 100);
-    
-    // Create a more informative result display
-    resultDiv.innerHTML = `
-        <div class="prediction-result p-6 rounded-lg ${isHighIncome ? 'bg-green-50' : 'bg-blue-50'} border ${isHighIncome ? 'border-green-200' : 'border-blue-200'} shadow-sm">
-            <div class="text-center">
-                <div class="inline-flex items-center justify-center w-20 h-20 rounded-full ${isHighIncome ? 'bg-green-100 text-green-600' : 'bg-blue-100 text-blue-600'} mb-4 shadow-sm">
-                    <i class="fas ${isHighIncome ? 'fa-dollar-sign' : 'fa-euro-sign'} text-3xl"></i>
+    const isHighIncome = (result.prediction && result.prediction.includes('>50K')) || result.class === 1;
+
+    // Hide initial placeholder and show the result area
+    initialPlaceholder.classList.add('hidden');
+    predictionResultArea.classList.remove('hidden');
+
+    // Update the text inside the donut chart
+    const incomeLabel = isHighIncome ? '>$50K' : '<=$50K';
+    const incomeTextColor = isHighIncome ? 'text-green-700' : 'text-blue-700';
+    predictionTextDiv.innerHTML = `
+        <span class="text-3xl font-bold ${incomeTextColor}">${confidence}%</span>
+        <span class="text-sm ${incomeTextColor}">Confidence</span>
+    `;
+
+    // Update the details below the chart
+    const detailsTextColor = isHighIncome ? 'text-green-800' : 'text-blue-800';
+    const detailsBgColor = isHighIncome ? 'bg-green-50' : 'bg-blue-50';
+    predictionDetailsDiv.innerHTML = `
+        <div class="p-3 rounded-lg ${detailsBgColor} text-center">
+            <p class="font-semibold ${detailsTextColor}">Predicted Salary Range</p>
+            <p class="text-xl font-bold ${detailsTextColor}">${incomeLabel}</p>
+        </div>
+        ${confidence < 60 ? `
+        <div class="mt-3 bg-yellow-50 border-l-4 border-yellow-400 p-3 rounded">
+            <div class="flex">
+                <div class="flex-shrink-0">
+                    <i class="fas fa-exclamation-triangle text-yellow-500"></i>
                 </div>
-                <h3 class="text-2xl font-bold ${isHighIncome ? 'text-green-800' : 'text-blue-800'} mb-2">
-                    ${isHighIncome ? 'High Income (>$50K)' : 'Low Income (≤$50K)'}
-                </h3>
-                
-                <div class="mb-4">
-                    <div class="flex justify-between text-sm text-gray-600 mb-1">
-                        <span>Confidence Level:</span>
-                        <span class="font-medium">${validConfidence}%</span>
-                    </div>
-                    <div class="w-full bg-gray-200 rounded-full h-2.5">
-                        <div class="h-2.5 rounded-full ${isHighIncome ? 'bg-green-500' : 'bg-blue-500'}" 
-                             style="width: ${validConfidence}%"></div>
-                    </div>
-                </div>
-                
-                ${validConfidence < 60 ? `
-                <div class="bg-yellow-50 border-l-4 border-yellow-400 p-3 mb-4 rounded">
-                    <div class="flex">
-                        <div class="flex-shrink-0">
-                            <i class="fas fa-exclamation-triangle text-yellow-500"></i>
-                        </div>
-                        <div class="ml-3">
-                            <p class="text-sm text-yellow-700">
-                                Note: This is a low confidence prediction. The model is less certain about this result.
-                            </p>
-                        </div>
-                    </div>
-                </div>` : ''}
-                
-                <div class="mt-4 pt-4 border-t border-gray-200">
-                    <p class="text-sm text-gray-600">
-                        <i class="fas fa-info-circle text-gray-400 mr-1"></i>
-                        Prediction based on the provided employee details
+                <div class="ml-3">
+                    <p class="text-sm text-yellow-700">
+                        This is a low confidence prediction. The model is less certain about this result.
                     </p>
                 </div>
             </div>
-        </div>
+        </div>` : ''}
     `;
-    
-    // Add animation class
-    resultDiv.classList.add('animate-fade-in');
+
+    // Create or update the donut chart
+    const chartData = {
+        datasets: [{
+            data: [confidence, 100 - confidence],
+            backgroundColor: [
+                isHighIncome ? 'rgba(5, 150, 105, 1)' : 'rgba(59, 130, 246, 1)',
+                'rgba(229, 231, 235, 1)'
+            ],
+            borderColor: '#fff',
+            borderWidth: 2,
+            hoverBorderColor: '#fff'
+        }]
+    };
+
+    // Check if a chart instance already exists and destroy it
+    if (window.myConfidenceChart) {
+        window.myConfidenceChart.destroy();
+    }
+
+    // Create the new chart
+    window.myConfidenceChart = new Chart(chartCanvas, {
+        type: 'doughnut',
+        data: chartData,
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: '80%',
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    enabled: false
+                }
+            },
+            animation: {
+                animateScale: true,
+                animateRotate: true
+            }
+        }
+    });
+
+    // Add animation class to the result area for a smooth fade-in
+    predictionResultArea.classList.add('animate-fade-in');
+    setTimeout(() => {
+        predictionResultArea.classList.remove('animate-fade-in');
+    }, 500);
+
     
     // Scroll to result with smooth animation
     setTimeout(() => {
