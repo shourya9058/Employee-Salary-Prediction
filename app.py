@@ -33,12 +33,31 @@ model = None
 label_encoders = {}
 
 # Initialize or load model
+def load_default_dataset():
+    """Load and preprocess the default adult 3.csv dataset"""
+    try:
+        df = pd.read_csv('adult 3.csv')
+        # Ensure the CSV has the expected columns
+        required_columns = ['age', 'workclass', 'education', 'occupation', 'marital-status',
+                          'relationship', 'race', 'sex', 'hours-per-week', 'native-country', 'salary']
+        
+        if not all(col in df.columns for col in required_columns):
+            logger.error("Default dataset is missing required columns")
+            return None
+            
+        logger.info("Successfully loaded default dataset")
+        return df
+    except Exception as e:
+        logger.error(f"Error loading default dataset: {str(e)}")
+        return None
+
 def init_model():
     global model, label_encoders, model_trained_on, model_accuracy
     model_trained_on = None
     model_accuracy = None
     
     try:
+        # Try to load existing model first
         if os.path.exists('model.joblib') and os.path.exists('encoders.joblib'):
             model = joblib.load('model.joblib')
             label_encoders = joblib.load('encoders.joblib')
@@ -49,11 +68,24 @@ def init_model():
                 model_trained_on = metadata.get('trained_on')
                 model_accuracy = metadata.get('accuracy')
             
+            logger.info("Loaded existing model")
             return "Ready"
-        return "Not Trained"
+            
+        # If no model exists, try to train with default dataset
+        if os.path.exists('adult 3.csv'):
+            logger.info("No existing model found. Training with default dataset...")
+            df = load_default_dataset()
+            if df is not None:
+                train_model(df)
+                logger.info("Successfully trained model with default dataset")
+                return "Ready (Trained with default dataset)"
+        
+        return "Not Trained (No model found and default dataset not available)"
+        
     except Exception as e:
-        print(f"Error initializing model: {str(e)}")
-        return "Error"
+        error_msg = f"Error initializing model: {str(e)}"
+        logger.error(error_msg)
+        return f"Error: {error_msg}"
 
 # Train model function
 def train_model(df):
