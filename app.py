@@ -78,19 +78,51 @@ def init_model():
     model_accuracy = None
     
     try:
+        logger.info("Initializing model...")
+        
+        # Check if model files exist
+        model_exists = os.path.exists('model.joblib') and os.path.exists('encoders.joblib')
+        
         # Always train with the default dataset when the server starts
         if os.path.exists('adult 3.csv'):
-            logger.info("Training model with default dataset...")
+            logger.info("Loading and processing default dataset...")
             df = load_default_dataset()
             if df is not None:
-                # Train the model with the default dataset
+                logger.info(f"Successfully loaded dataset with shape: {df.shape}")
+                logger.info("Training model with default dataset...")
                 train_model(df)
                 logger.info("Successfully trained model with default dataset")
                 return "Ready (Trained with default dataset)"
             else:
-                logger.error("Failed to load default dataset")
+                error_msg = "Failed to load default dataset"
+                logger.error(error_msg)
+                if not model_exists:
+                    return f"Error: {error_msg} - No existing model found"
         else:
-            logger.error("Default dataset 'adult 3.csv' not found")
+            error_msg = "Default dataset 'adult 3.csv' not found"
+            logger.error(error_msg)
+            if not model_exists:
+                return f"Error: {error_msg} - No existing model found"
+        
+        # If we couldn't train with default dataset, try to load existing model
+        if model_exists:
+            logger.info("Loading existing model...")
+            try:
+                model = joblib.load('model.joblib')
+                label_encoders = joblib.load('encoders.joblib')
+                logger.info("Successfully loaded existing model")
+                return "Ready (Loaded existing model)"
+            except Exception as e:
+                error_msg = f"Error loading saved model: {str(e)}"
+                logger.error(error_msg)
+                return f"Error: {error_msg}"
+        
+        return "Error: Could not initialize model - no dataset or saved model found"
+        
+    except Exception as e:
+        error_msg = f"Unexpected error in init_model: {str(e)}"
+        logger.error(error_msg, exc_info=True)
+        return f"Error: {error_msg}"
             
         # If we couldn't train with default dataset, try to load existing model
         if os.path.exists('model.joblib') and os.path.exists('encoders.joblib'):
@@ -266,6 +298,30 @@ def serve_static(path):
     return send_from_directory('static', path)
 
 # Model status endpoint
+@app.route('/api/model-status')
+def get_model_status():
+    global model_trained_on, model_accuracy
+    try:
+        status = "Not Trained"
+        if model is not None:
+            status = "Ready (Model loaded)"
+        
+        return jsonify({
+            'status': status,
+            'trained_on': model_trained_on.isoformat() if model_trained_on else None,
+            'accuracy': float(model_accuracy) if model_accuracy is not None else None,
+            'features': list(label_encoders.keys()) if label_encoders else []
+        })
+    except Exception as e:
+        app.logger.error(f"Error in model status: {str(e)}", exc_info=True)
+        return jsonify({
+            'status': f'Error: {str(e)}',
+            'trained_on': None,
+            'accuracy': None,
+            'features': []
+        }), 500
+
+# Training endpoint
 @app.route('/api/model-status')
 def get_model_status():
     status = init_model()
@@ -462,5 +518,15 @@ def predict():
         return jsonify({'error': f'Prediction failed: {str(e)}'}), 500
 
 if __name__ == '__main__':
-    init_model()
-    app.run(debug=True)
+    try:
+        # Initialize the model
+        logger.info("Starting application...")
+        init_model()
+        
+        # Run the Flask app
+        port = int(os.environ.get('PORT', 5000))
+        logger.info(f"Starting server on port {port}")
+        app.run(host='0.0.0.0', port=port, debug=False, use_reloader=False)
+    except Exception as e:
+        logger.error(f"Fatal error in application: {str(e)}")
+        raise
