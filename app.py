@@ -31,6 +31,8 @@ app.logger.addHandler(handler)
 # Global variables to store model and encoders
 model = None
 label_encoders = {}
+model_trained_on = None
+model_accuracy = None
 
 # Initialize or load model
 def load_default_dataset():
@@ -282,26 +284,54 @@ def serve_static(path):
 # Model status endpoint
 @app.route('/api/model-status', methods=['GET'])
 def get_model_status():
-    # Load metadata to check if model was trained with default dataset
-    is_default = False
-    if os.path.exists('model_metadata.joblib'):
-        try:
-            metadata = joblib.load('model_metadata.joblib')
-            is_default = metadata.get('is_default_dataset', False)
-        except Exception as e:
-            app.logger.error(f"Error loading model metadata: {str(e)}")
-    
-    status = 'Ready (Trained with default dataset)' if is_default else 'Trained'
-    if not model_trained_on:
-        status = 'Not Trained'
+    try:
+        # Initialize default values
+        is_default = False
+        trained_on = model_trained_on
+        accuracy = model_accuracy
+        features = []
         
-    return jsonify({
-        'status': status,
-        'trained_on': model_trained_on,
-        'accuracy': model_accuracy,
-        'features': list(label_encoders.keys()) if label_encoders else [],
-        'is_default_dataset': is_default
-    })
+        # Try to load metadata if it exists
+        if os.path.exists('model_metadata.joblib'):
+            try:
+                metadata = joblib.load('model_metadata.joblib')
+                is_default = metadata.get('is_default_dataset', False)
+                # Use metadata values if globals are not set
+                if trained_on is None:
+                    trained_on = metadata.get('trained_on')
+                if accuracy is None:
+                    accuracy = metadata.get('accuracy')
+            except Exception as e:
+                app.logger.error(f"Error loading model metadata: {str(e)}")
+        
+        # Get features from label_encoders if available
+        if label_encoders:
+            features = list(label_encoders.keys())
+        
+        # Determine status based on available information
+        if model is None:
+            status = 'Not Trained'
+        else:
+            status = 'Ready (Trained with default dataset)' if is_default else 'Trained'
+        
+        # Prepare response data
+        response_data = {
+            'status': status,
+            'trained_on': trained_on,
+            'accuracy': accuracy,
+            'features': features,
+            'is_default_dataset': is_default if model is not None else False
+        }
+        
+        return jsonify(response_data)
+        
+    except Exception as e:
+        app.logger.error(f"Error in get_model_status: {str(e)}", exc_info=True)
+        return jsonify({
+            'status': 'Error',
+            'message': 'An error occurred while getting model status',
+            'error': str(e)
+        }), 500
 
 @app.route('/api/train', methods=['POST'])
 def train():
