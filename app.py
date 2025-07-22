@@ -28,6 +28,14 @@ logger.addHandler(handler)
 app = Flask(__name__)
 app.logger.addHandler(handler)
 
+# Initialize the model when the app starts
+with app.app_context():
+    try:
+        init_model()
+        app.logger.info("Model initialization completed during app startup")
+    except Exception as e:
+        app.logger.error(f"Error initializing model during app startup: {str(e)}", exc_info=True)
+
 # Global variables to store model and encoders
 model = None
 label_encoders = {}
@@ -535,5 +543,4 @@ def predict():
         return jsonify({'error': f'Prediction failed: {str(e)}'}), 500
 
 if __name__ == '__main__':
-    init_model()
     app.run(debug=True)
