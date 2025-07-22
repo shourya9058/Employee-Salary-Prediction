@@ -33,6 +33,7 @@ model = None
 label_encoders = {}
 model_trained_on = None
 model_accuracy = None
+model_trained_with_default = False
 
 # Initialize or load model
 def load_default_dataset():
@@ -75,13 +76,16 @@ def load_default_dataset():
         return None
 
 def init_model():
-    global model, label_encoders, model_trained_on, model_accuracy
+    global model, label_encoders, model_trained_on, model_accuracy, model_trained_with_default
+    
+    # Initialize model to None to ensure it's always defined
+    model = None
     
     # Always try to train with the default dataset first
     if os.path.exists('adult 3.csv'):
         logger.info("Loading default dataset...")
         df = load_default_dataset()
-        if df is not None:
+        if df is not None and not df.empty:
             try:
                 # Train the model with the default dataset
                 logger.info("Training model with default dataset...")
@@ -91,13 +95,14 @@ def init_model():
                     raise Exception(train_result['error'])
                     
                 logger.info("Successfully trained model with default dataset")
+                model_trained_with_default = True
                 return "Ready (Trained with default dataset)"
                 
             except Exception as e:
                 logger.error(f"Error training with default dataset: {str(e)}")
                 # Continue to try loading existing model if training fails
         else:
-            logger.error("Failed to load default dataset")
+            logger.error("Failed to load default dataset or dataset is empty")
     else:
         logger.error("Default dataset 'adult 3.csv' not found")
     
@@ -112,12 +117,15 @@ def init_model():
                 metadata = joblib.load('model_metadata.joblib')
                 model_trained_on = metadata.get('trained_on')
                 model_accuracy = metadata.get('accuracy')
+                model_trained_with_default = metadata.get('is_default_dataset', False)
             
             logger.info("Loaded existing model")
             return "Ready (Loaded existing model)"
     except Exception as e:
         logger.error(f"Error loading existing model: {str(e)}")
     
+    # If we get here, no model was loaded or trained
+    model = None
     return "Not Trained (No dataset available and no existing model found)"
 
 # Train model function
@@ -476,11 +484,19 @@ def train():
 
 @app.route('/api/predict', methods=['POST'])
 def predict():
-    # Initialize model if not already done
-    init_model()
+    global model, label_encoders
     
+    # Try to initialize model if not already done
+    if model is None:
+        init_model()
+    
+    # Check if model is still None after initialization
     if model is None:
         return jsonify({'error': 'Model not trained yet. Please train the model first.'}), 400
+        
+    # Check if label_encoders is available
+    if label_encoders is None:
+        return jsonify({'error': 'Model encoders not loaded. Please retrain the model.'}), 400
     
     try:
         data = request.get_json()
