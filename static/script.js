@@ -372,6 +372,7 @@ function displayPredictionResult(result) {
     const predictionTextDiv = document.getElementById('predictionText');
     const predictionDetailsDiv = document.getElementById('predictionDetails');
     const chartCanvas = document.getElementById('confidenceChart');
+    const resultDiv = document.getElementById('result'); // Add missing resultDiv reference
     
     const confidence = result.confidence ? Math.round(result.confidence * 100) : 0;
     const isHighIncome = (result.prediction && result.prediction.includes('>50K')) || result.class === 1;

@@ -336,9 +336,26 @@ def train():
             if df.empty:
                 raise ValueError('The uploaded file is empty')
                 
-            # Check for required columns
-            if 'income' not in df.columns:
-                raise ValueError("CSV file must contain an 'income' column")
+            # Map column names to match expected format
+            column_mapping = {
+                'gender': 'sex',
+                'income': 'salary',
+                'educational-num': 'education_num',
+                'marital-status': 'marital_status',
+                'capital-gain': 'capital_gain',
+                'capital-loss': 'capital_loss',
+                'hours-per-week': 'hours_per_week',
+                'native-country': 'native_country'
+            }
+            
+            # Rename columns to match expected names
+            df = df.rename(columns=column_mapping)
+            
+            # Check for required columns after mapping
+            required_columns = ['salary']
+            missing_columns = [col for col in required_columns if col not in df.columns]
+            if missing_columns:
+                raise ValueError(f"CSV file must contain a 'salary' column (mapped from 'income' in the CSV). Missing columns: {missing_columns}")
                 
             # Check for minimum data requirements
             if len(df) < 10:
