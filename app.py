@@ -31,6 +31,8 @@ app.logger.addHandler(handler)
 # Global variables to store model and encoders
 model = None
 label_encoders = {}
+model_trained_on = None
+model_accuracy = None
 
 # Initialize or load model
 def load_default_dataset():
