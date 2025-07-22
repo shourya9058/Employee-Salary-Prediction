@@ -38,22 +38,50 @@ model_accuracy = None
 def load_default_dataset():
     """Load and preprocess the default adult 3.csv dataset"""
     try:
-        # Read the CSV file
-        df = pd.read_csv('adult 3.csv')
+        logger.info("Loading default dataset...")
         
-        # Map actual column names to expected names
+        # Try different possible paths for the dataset
+        possible_paths = [
+            'adult 3.csv',
+            'app/adult 3.csv',
+            '/app/adult 3.csv',
+            os.path.join(os.path.dirname(__file__), 'adult 3.csv')
+        ]
+        
+        df = None
+        for path in possible_paths:
+            try:
+                if os.path.exists(path):
+                    logger.info(f"Found dataset at: {path}")
+                    df = pd.read_csv(path)
+                    break
+            except Exception as e:
+                logger.warning(f"Error loading dataset from {path}: {str(e)}")
+        
+        if df is None:
+            logger.error("Could not find or load the dataset from any known location")
+            return None
+            
+        # Map column names to expected format
         column_mapping = {
-            'gender': 'sex',
-            'income': 'salary',
+            'age': 'age',
+            'workclass': 'workclass',
+            'fnlwgt': 'fnlwgt',
+            'education': 'education',
             'educational-num': 'education_num',
             'marital-status': 'marital_status',
+            'occupation': 'occupation',
+            'relationship': 'relationship',
+            'race': 'race',
+            'gender': 'sex',
             'capital-gain': 'capital_gain',
             'capital-loss': 'capital_loss',
             'hours-per-week': 'hours_per_week',
-            'native-country': 'native_country'
+            'native-country': 'native_country',
+            'income': 'salary'  # This is the target variable
         }
         
-        # Rename columns to match expected names
+        # Rename columns to match expected format
         df = df.rename(columns=column_mapping)
         
         # Ensure all required columns exist after renaming
