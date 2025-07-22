@@ -36,16 +36,37 @@ label_encoders = {}
 def load_default_dataset():
     """Load and preprocess the default adult 3.csv dataset"""
     try:
+        # Read the CSV file
         df = pd.read_csv('adult 3.csv')
-        # Ensure the CSV has the expected columns
-        required_columns = ['age', 'workclass', 'education', 'occupation', 'marital-status',
-                          'relationship', 'race', 'sex', 'hours-per-week', 'native-country', 'salary']
         
-        if not all(col in df.columns for col in required_columns):
-            logger.error("Default dataset is missing required columns")
+        # Map actual column names to expected names
+        column_mapping = {
+            'gender': 'sex',
+            'income': 'salary',
+            'educational-num': 'education_num',
+            'marital-status': 'marital_status',
+            'capital-gain': 'capital_gain',
+            'capital-loss': 'capital_loss',
+            'hours-per-week': 'hours_per_week',
+            'native-country': 'native_country'
+        }
+        
+        # Rename columns to match expected names
+        df = df.rename(columns=column_mapping)
+        
+        # Ensure all required columns exist after renaming
+        required_columns = [
+            'age', 'workclass', 'education', 'occupation', 'marital_status',
+            'relationship', 'race', 'sex', 'hours_per_week', 'native_country', 'salary'
+        ]
+        
+        missing_columns = [col for col in required_columns if col not in df.columns]
+        if missing_columns:
+            logger.error(f"Default dataset is missing required columns after mapping: {missing_columns}")
+            logger.error(f"Available columns: {df.columns.tolist()}")
             return None
             
-        logger.info("Successfully loaded default dataset")
+        logger.info("Successfully loaded and mapped default dataset columns")
         return df
     except Exception as e:
         logger.error(f"Error loading default dataset: {str(e)}")
@@ -100,10 +121,11 @@ def train_model(df):
     try:
         app.logger.info("Starting model training...")
         
-        # Check if 'income' column exists
-        if 'income' not in df.columns:
-            error_msg = "Dataset must contain an 'income' column"
+        # Check if 'salary' column exists (mapped from 'income' in the CSV)
+        if 'salary' not in df.columns:
+            error_msg = "Dataset must contain a 'salary' column (mapped from 'income' in the CSV)"
             app.logger.error(error_msg)
+            logger.error(f"Available columns: {df.columns.tolist()}")
             return {"error": error_msg}
         
         # Make a copy to avoid modifying the original dataframe
@@ -144,9 +166,9 @@ def train_model(df):
             return {"error": error_msg}
         
         try:
-            # Prepare data
-            X = df_clean.drop("income", axis=1)
-            y = df_clean["income"]
+            # Prepare data - use 'salary' as the target variable (mapped from 'income' in the CSV)
+            X = df_clean.drop("salary", axis=1)
+            y = df_clean["salary"]
             
             # Check if we have enough data
             if len(X) < 10:
@@ -408,8 +430,8 @@ def predict():
         confidence = float(probabilities.max())
         
         # Convert prediction back to original label if possible
-        if 'income' in label_encoders:
-            predicted_label = label_encoders['income'].inverse_transform([predicted_class])[0]
+        if 'salary' in label_encoders:
+            predicted_label = label_encoders['salary'].inverse_transform([predicted_class])[0]
         else:
             predicted_label = '>50K' if predicted_class == 1 else '<=50K'
         

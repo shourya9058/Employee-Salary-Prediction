@@ -145,21 +145,26 @@ function setupEventListeners() {
 async function handlePrediction(e) {
     e.preventDefault();
     
+    // Show loading state immediately for better UX
+    showLoading('Predicting salary...');
+    
     // Reset any previous error states
     const errorInputs = document.querySelectorAll('.border-red-500, .border-green-500');
     errorInputs.forEach(input => {
         input.classList.remove('border-red-500', 'border-green-500');
     });
     
-    // Check if model is ready
+    // Check if model is ready (after showing loader)
     try {
         const status = await checkModelStatus();
         if (!status.status || !status.status.startsWith('Ready')) {
+            hideLoading(); // Hide loader if model is not ready
             showToast('Model is not ready. Please train the model first.', 'error');
             return;
         }
     } catch (error) {
         console.error('Error checking model status:', error);
+        hideLoading(); // Hide loader on error
         showToast('Failed to check model status. Please try again.', 'error');
         return;
     }
@@ -263,19 +268,39 @@ async function handlePrediction(e) {
         return;
     }
     
-    // Show loading state
-    showLoading('Predicting salary...');
-    
     try {
-        // Prepare the request data with proper types
-        const requestData = { ...data };
+        // Map form field names to model feature names
+        const fieldMappings = {
+            'age': 'age',
+            'workclass': 'workclass',
+            'fnlwgt': 'fnlwgt',
+            'education': 'education',
+            'educational-num': 'education_num',
+            'marital-status': 'marital_status',
+            'occupation': 'occupation',
+            'relationship': 'relationship',
+            'race': 'race',
+            'gender': 'sex',
+            'capital-gain': 'capital_gain',
+            'capital-loss': 'capital_loss',
+            'hours-per-week': 'hours_per_week',
+            'native-country': 'native_country'
+        };
         
-        // Ensure numeric fields are numbers
-        const numericFields = ['age', 'fnlwgt', 'educational-num', 'capital-gain', 'capital-loss', 'hours-per-week'];
-        numericFields.forEach(field => {
-            if (field in requestData) {
-                const numValue = parseFloat(requestData[field]);
-                requestData[field] = isNaN(numValue) ? 0 : numValue;
+        // Prepare the request data with proper types and mapped field names
+        const requestData = {};
+        
+        Object.keys(data).forEach(field => {
+            const modelField = fieldMappings[field] || field;
+            let value = data[field];
+            
+            // Convert numeric fields to numbers
+            const numericFields = ['age', 'fnlwgt', 'education_num', 'capital_gain', 'capital_loss', 'hours_per_week'];
+            if (numericFields.includes(modelField)) {
+                const numValue = parseFloat(value);
+                requestData[modelField] = isNaN(numValue) ? 0 : numValue;
+            } else {
+                requestData[modelField] = value;
             }
         });
         
