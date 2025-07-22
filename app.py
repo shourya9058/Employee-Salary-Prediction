@@ -31,57 +31,27 @@ app.logger.addHandler(handler)
 # Global variables to store model and encoders
 model = None
 label_encoders = {}
-model_trained_on = None
-model_accuracy = None
 
 # Initialize or load model
 def load_default_dataset():
     """Load and preprocess the default adult 3.csv dataset"""
     try:
-        logger.info("Loading default dataset...")
+        # Read the CSV file
+        df = pd.read_csv('adult 3.csv')
         
-        # Try different possible paths for the dataset
-        possible_paths = [
-            'adult 3.csv',
-            'app/adult 3.csv',
-            '/app/adult 3.csv',
-            os.path.join(os.path.dirname(__file__), 'adult 3.csv')
-        ]
-        
-        df = None
-        for path in possible_paths:
-            try:
-                if os.path.exists(path):
-                    logger.info(f"Found dataset at: {path}")
-                    df = pd.read_csv(path)
-                    break
-            except Exception as e:
-                logger.warning(f"Error loading dataset from {path}: {str(e)}")
-        
-        if df is None:
-            logger.error("Could not find or load the dataset from any known location")
-            return None
-            
-        # Map column names to expected format
+        # Map actual column names to expected names
         column_mapping = {
-            'age': 'age',
-            'workclass': 'workclass',
-            'fnlwgt': 'fnlwgt',
-            'education': 'education',
+            'gender': 'sex',
+            'income': 'salary',
             'educational-num': 'education_num',
             'marital-status': 'marital_status',
-            'occupation': 'occupation',
-            'relationship': 'relationship',
-            'race': 'race',
-            'gender': 'sex',
             'capital-gain': 'capital_gain',
             'capital-loss': 'capital_loss',
             'hours-per-week': 'hours_per_week',
-            'native-country': 'native_country',
-            'income': 'salary'  # This is the target variable
+            'native-country': 'native_country'
         }
         
-        # Rename columns to match expected format
+        # Rename columns to match expected names
         df = df.rename(columns=column_mapping)
         
         # Ensure all required columns exist after renaming
@@ -104,63 +74,44 @@ def load_default_dataset():
 
 def init_model():
     global model, label_encoders, model_trained_on, model_accuracy
-    
-    # Initialize global variables
-    model = None
-    label_encoders = {}
     model_trained_on = None
     model_accuracy = None
     
     try:
-        logger.info("Initializing model...")
-        
-        # First, try to train with the default dataset
+        # Always train with the default dataset when the server starts
         if os.path.exists('adult 3.csv'):
-            logger.info("Loading and processing default dataset...")
+            logger.info("Training model with default dataset...")
             df = load_default_dataset()
-            if df is not None and not df.empty:
-                logger.info(f"Successfully loaded dataset with shape: {df.shape}")
-                logger.info("Training model with default dataset...")
-                train_result = train_model(df)
-                if train_result and not isinstance(train_result, dict) or 'error' not in train_result:
-                    logger.info("Successfully trained model with default dataset")
-                    model_trained_on = datetime.now()
-                    return "Ready (Trained with default dataset)"
-                else:
-                    error_msg = train_result.get('error', 'Unknown error during training') if isinstance(train_result, dict) else 'Training failed'
-                    logger.error(f"Training failed: {error_msg}")
+            if df is not None:
+                # Train the model with the default dataset
+                train_model(df)
+                logger.info("Successfully trained model with default dataset")
+                return "Ready (Trained with default dataset)"
             else:
-                error_msg = "Failed to load or process default dataset"
-                logger.error(error_msg)
+                logger.error("Failed to load default dataset")
         else:
-            error_msg = "Default dataset 'adult 3.csv' not found"
-            logger.error(error_msg)
-        
-        # If we get here, training failed or no dataset - try to load existing model
+            logger.error("Default dataset 'adult 3.csv' not found")
+            
+        # If we couldn't train with default dataset, try to load existing model
         if os.path.exists('model.joblib') and os.path.exists('encoders.joblib'):
-            logger.info("Loading existing model...")
-            try:
-                model = joblib.load('model.joblib')
-                label_encoders = joblib.load('encoders.joblib')
-                
-                # Load metadata if exists
-                if os.path.exists('model_metadata.joblib'):
-                    metadata = joblib.load('model_metadata.joblib')
-                    model_trained_on = metadata.get('trained_on')
-                    model_accuracy = metadata.get('accuracy')
-                
-                logger.info("Successfully loaded existing model")
-                return "Ready (Loaded existing model)"
-            except Exception as e:
-                error_msg = f"Error loading saved model: {str(e)}"
-                logger.error(error_msg)
-                return f"Error: {error_msg}"
+            model = joblib.load('model.joblib')
+            label_encoders = joblib.load('encoders.joblib')
+            
+            # Load metadata if exists
+            if os.path.exists('model_metadata.joblib'):
+                metadata = joblib.load('model_metadata.joblib')
+                model_trained_on = metadata.get('trained_on')
+                model_accuracy = metadata.get('accuracy')
+            
+            logger.info("Loaded existing model")
+            return "Ready (Loaded existing model)"
         
         return "Not Trained (No dataset available and no existing model found)"
         
     except Exception as e:
-        error_msg = f"Unexpected error in init_model: {str(e)}"
-        logger.error(error_msg, exc_info=True)
+        error_msg = f"Error initializing model: {str(e)}"
+        logger.error(error_msg)
+        return f"Error: {error_msg}"
         return f"Error: {error_msg}"
 
 # Train model function
@@ -317,26 +268,13 @@ def serve_static(path):
 # Model status endpoint
 @app.route('/api/model-status')
 def get_model_status():
-    global model_trained_on, model_accuracy
-    try:
-        status = "Not Trained"
-        if model is not None:
-            status = "Ready (Model loaded)"
-        
-        return jsonify({
-            'status': status,
-            'trained_on': model_trained_on.isoformat() if model_trained_on else None,
-            'accuracy': float(model_accuracy) if model_accuracy is not None else None,
-            'features': list(label_encoders.keys()) if label_encoders else []
-        })
-    except Exception as e:
-        app.logger.error(f"Error in model status: {str(e)}", exc_info=True)
-        return jsonify({
-            'status': f'Error: {str(e)}',
-            'trained_on': None,
-            'accuracy': None,
-            'features': []
-        }), 500
+    status = init_model()
+    return jsonify({
+        'status': status,
+        'trained_on': model_trained_on,
+        'accuracy': model_accuracy,
+        'features': list(label_encoders.keys()) if label_encoders else []
+    })
 
 @app.route('/api/train', methods=['POST'])
 def train():
@@ -524,15 +462,5 @@ def predict():
         return jsonify({'error': f'Prediction failed: {str(e)}'}), 500
 
 if __name__ == '__main__':
-    try:
-        # Initialize the model
-        logger.info("Starting application...")
-        init_model()
-        
-        # Run the Flask app
-        port = int(os.environ.get('PORT', 5000))
-        logger.info(f"Starting server on port {port}")
-        app.run(host='0.0.0.0', port=port, debug=False, use_reloader=False)
-    except Exception as e:
-        logger.error(f"Fatal error in application: {str(e)}")
-        raise
+    init_model()
+    app.run(debug=True)
