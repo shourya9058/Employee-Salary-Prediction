@@ -220,12 +220,15 @@ def train_model(df, is_default_dataset=False):
                 joblib.dump(model, 'model.joblib')
                 joblib.dump(label_encoders, 'encoders.joblib')
                 
-                # Save metadata
+                # Save metadata with consistent timestamp format
+                current_time = datetime.now()
+                timestamp_str = current_time.isoformat()  # ISO 8601 format for better compatibility
                 metadata = {
-                    'trained_on': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    'trained_on': timestamp_str,
                     'accuracy': float(accuracy),  # Convert numpy.float64 to Python float
                     'features': list(X.columns),
-                    'is_default_dataset': is_default_dataset
+                    'is_default_dataset': is_default_dataset,
+                    'timestamp': current_time.timestamp()  # Add timestamp as a float for easy comparison
                 }
                 joblib.dump(metadata, 'model_metadata.joblib')
                 
@@ -296,9 +299,21 @@ def get_model_status():
             try:
                 metadata = joblib.load('model_metadata.joblib')
                 is_default = metadata.get('is_default_dataset', False)
-                # Use metadata values if globals are not set
-                if trained_on is None:
-                    trained_on = metadata.get('trained_on')
+                
+                # Get the trained_on timestamp from metadata
+                metadata_trained_on = metadata.get('trained_on')
+                
+                # If we have a timestamp in metadata, use it
+                if metadata_trained_on:
+                    # If it's a timestamp (float), convert to ISO format string
+                    if isinstance(metadata_trained_on, (int, float)):
+                        from datetime import datetime
+                        trained_on = datetime.fromtimestamp(metadata_trained_on).isoformat()
+                    # If it's already a string, use it as is
+                    elif isinstance(metadata_trained_on, str):
+                        trained_on = metadata_trained_on
+                
+                # Update accuracy from metadata if not set
                 if accuracy is None:
                     accuracy = metadata.get('accuracy')
             except Exception as e:
