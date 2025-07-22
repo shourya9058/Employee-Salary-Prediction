@@ -74,19 +74,32 @@ def load_default_dataset():
 
 def init_model():
     global model, label_encoders, model_trained_on, model_accuracy
+    
+    # Initialize global variables
+    model = None
+    label_encoders = {}
     model_trained_on = None
     model_accuracy = None
     
     try:
-        # Always train with the default dataset when the server starts
+        # First, try to train with the default dataset
         if os.path.exists('adult 3.csv'):
-            logger.info("Training model with default dataset...")
+            logger.info("Attempting to train with default dataset...")
             df = load_default_dataset()
             if df is not None:
-                # Train the model with the default dataset
-                train_model(df)
-                logger.info("Successfully trained model with default dataset")
-                return "Ready (Trained with default dataset)"
+                try:
+                    # Train the model with the default dataset
+                    result = train_model(df)
+                    if 'error' not in result:
+                        logger.info("Successfully trained model with default dataset")
+                        # Ensure the model status is updated with the current time
+                        current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                        model_trained_on = current_time
+                        return f"Ready (Trained with default dataset at {current_time})"
+                    else:
+                        logger.error(f"Error in training model: {result.get('error')}")
+                except Exception as e:
+                    logger.error(f"Error during model training: {str(e)}")
             else:
                 logger.error("Failed to load default dataset")
         else:
@@ -266,12 +279,19 @@ def serve_static(path):
     return send_from_directory('static', path)
 
 # Model status endpoint
-@app.route('/api/model-status')
+@app.route('/api/model-status', methods=['GET'])
 def get_model_status():
-    status = init_model()
+    global model_trained_on, model_accuracy
+    
+    # If we don't have a trained model timestamp, try to initialize one
+    if model_trained_on is None:
+        status = init_model()
+    else:
+        status = "Ready"
+    
     return jsonify({
         'status': status,
-        'trained_on': model_trained_on,
+        'trained_on': model_trained_on or 'Never',
         'accuracy': model_accuracy,
         'features': list(label_encoders.keys()) if label_encoders else []
     })
