@@ -321,17 +321,6 @@ def get_model_status():
             'features': []
         }), 500
 
-# Training endpoint
-@app.route('/api/model-status')
-def get_model_status():
-    status = init_model()
-    return jsonify({
-        'status': status,
-        'trained_on': model_trained_on,
-        'accuracy': model_accuracy,
-        'features': list(label_encoders.keys()) if label_encoders else []
-    })
-
 @app.route('/api/train', methods=['POST'])
 def train():
     # Check if the post request has the file part
