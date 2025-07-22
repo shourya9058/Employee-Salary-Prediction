@@ -28,14 +28,6 @@ logger.addHandler(handler)
 app = Flask(__name__)
 app.logger.addHandler(handler)
 
-# Initialize the model when the app starts
-with app.app_context():
-    try:
-        init_model()
-        app.logger.info("Model initialization completed during app startup")
-    except Exception as e:
-        app.logger.error(f"Error initializing model during app startup: {str(e)}", exc_info=True)
-
 # Global variables to store model and encoders
 model = None
 label_encoders = {}
@@ -541,6 +533,34 @@ def predict():
     except Exception as e:
         print(f"Prediction error: {str(e)}")
         return jsonify({'error': f'Prediction failed: {str(e)}'}), 500
+
+# Initialize the model when the app starts
+def initialize_app():
+    with app.app_context():
+        try:
+            app.logger.info("Starting application initialization...")
+            # Ensure the default dataset exists
+            if not os.path.exists('adult 3.csv'):
+                app.logger.error("Default dataset 'adult 3.csv' not found")
+                return False
+                
+            app.logger.info("Initializing model with default dataset...")
+            status = init_model()
+            if "Ready" in status:
+                app.logger.info(f"Model initialization successful: {status}")
+                return True
+            else:
+                app.logger.error(f"Model initialization failed: {status}")
+                return False
+                
+        except Exception as e:
+            app.logger.error(f"Error during application initialization: {str(e)}", exc_info=True)
+            return False
+
+# Call the initialization function after all functions are defined
+app_initialized = initialize_app()
+if not app_initialized:
+    app.logger.warning("Application initialization completed with warnings")
 
 if __name__ == '__main__':
     app.run(debug=True)
