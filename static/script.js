@@ -525,10 +525,20 @@ async function handleUpload() {
             fileName.textContent = 'No file selected';
         }
         
+        // Update model status immediately with the new data
+        if (result.trained_on) {
+            modelStatus.textContent = 'Ready';
+            modelStatus.className = 'text-green-600 font-medium';
+            trainedOn.textContent = new Date(result.trained_on).toLocaleString();
+            if (result.accuracy !== undefined) {
+                modelAccuracy.textContent = `${(result.accuracy * 100).toFixed(2)}%`;
+            }
+        }
+        
         // Close modal after a short delay
         setTimeout(() => {
             showModal(false);
-            // Update model status
+            // Force a full status check to ensure everything is in sync
             checkModelStatus();
         }, 1500);
         
