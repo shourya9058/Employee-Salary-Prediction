@@ -34,12 +34,6 @@ async function checkModelStatus() {
     try {
         clearInterval(modelCheckInterval);
         
-        // Show loading state
-        const wasLoadingHidden = loadingOverlay.classList.contains('hidden');
-        if (wasLoadingHidden) {
-            showLoading('Checking model status...');
-        }
-        
         const response = await fetch('/api/model-status');
         if (!response.ok) {
             throw new Error('Failed to fetch model status');
@@ -48,51 +42,36 @@ async function checkModelStatus() {
         const data = await response.json();
         
         // Update UI with model status
-        const statusText = data.status || 'Not Trained';
-        modelStatus.textContent = statusText;
+        let statusText = 'Not Trained';
+        let statusClass = 'text-yellow-600 font-medium';
         
-        // Update training time if available
-        if (data.trained_on && data.trained_on !== 'Never') {
-            try {
-                const trainedDate = new Date(data.trained_on);
-                if (!isNaN(trainedDate.getTime())) {
-                    trainedOn.textContent = trainedDate.toLocaleString();
-                } else {
-                    trainedOn.textContent = data.trained_on; // Use raw value if date parsing fails
-                }
-            } catch (e) {
-                console.error('Error parsing training date:', e);
-                trainedOn.textContent = data.trained_on;
+        if (data.status) {
+            if (data.status === 'Ready (Trained with default dataset)') {
+                statusText = 'Ready (Trained with default dataset)';
+                statusClass = 'text-green-600 font-medium';
+            } else if (data.status === 'Trained') {
+                statusText = 'Trained';
+                statusClass = 'text-green-600 font-medium';
+            } else if (data.status === 'Not Trained') {
+                statusText = 'Not Trained';
+                statusClass = 'text-yellow-600 font-medium';
+            } else {
+                statusText = data.status;
+                statusClass = 'text-red-600 font-medium';
             }
-        } else {
-            trainedOn.textContent = 'Never';
         }
         
-        // Update accuracy if available
-        if (data.accuracy !== undefined && data.accuracy !== null) {
-            modelAccuracy.textContent = `${(data.accuracy * 100).toFixed(2)}%`;
-        } else {
-            modelAccuracy.textContent = 'N/A';
-        }
+        modelStatus.textContent = statusText;
+        modelStatus.className = statusClass;
         
-        // Set status color based on state
-        if (statusText.includes('Ready') || statusText.includes('Trained')) {
-            modelStatus.className = 'text-green-600 font-medium';
-            // Only start checking periodically if model is ready
-            modelCheckInterval = setInterval(checkModelStatus, 30000); // Check every 30 seconds
+        // Set up periodic checking based on status
+        clearInterval(modelCheckInterval);
+        if (statusText === 'Ready (Trained with default dataset)' || statusText === 'Trained') {
+            modelCheckInterval = setInterval(checkModelStatus, 30000); // Every 30 seconds
         } else if (statusText === 'Not Trained') {
-            modelStatus.className = 'text-yellow-600 font-medium';
-            // Check more frequently if not trained
-            modelCheckInterval = setInterval(checkModelStatus, 10000); // Check every 10 seconds
+            modelCheckInterval = setInterval(checkModelStatus, 10000); // Every 10 seconds
         } else {
-            modelStatus.className = 'text-red-600 font-medium';
-            // Check more frequently if error
-            modelCheckInterval = setInterval(checkModelStatus, 5000); // Check every 5 seconds
-        }
-        
-        // Hide loading if it was shown by this function call
-        if (wasLoadingHidden) {
-            setTimeout(hideLoading, 500);
+            modelCheckInterval = setInterval(checkModelStatus, 5000); // Every 5 seconds for errors
         }
         
         // Update training date if available
@@ -563,7 +542,8 @@ async function handleUpload() {
         
         // Update model status immediately with the new data
         if (result.trained_on) {
-            modelStatus.textContent = 'Ready';
+            // Set status to 'Trained' for user-uploaded datasets
+            modelStatus.textContent = 'Trained';
             modelStatus.className = 'text-green-600 font-medium';
             trainedOn.textContent = new Date(result.trained_on).toLocaleString();
             if (result.accuracy !== undefined) {

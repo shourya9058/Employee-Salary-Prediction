@@ -75,37 +75,32 @@ def load_default_dataset():
 def init_model():
     global model, label_encoders, model_trained_on, model_accuracy
     
-    # Initialize global variables
-    model = None
-    label_encoders = {}
-    model_trained_on = None
-    model_accuracy = None
-    
-    try:
-        # First, try to train with the default dataset
-        if os.path.exists('adult 3.csv'):
-            logger.info("Attempting to train with default dataset...")
-            df = load_default_dataset()
-            if df is not None:
-                try:
-                    # Train the model with the default dataset
-                    result = train_model(df)
-                    if 'error' not in result:
-                        logger.info("Successfully trained model with default dataset")
-                        # Ensure the model status is updated with the current time
-                        current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                        model_trained_on = current_time
-                        return f"Ready (Trained with default dataset at {current_time})"
-                    else:
-                        logger.error(f"Error in training model: {result.get('error')}")
-                except Exception as e:
-                    logger.error(f"Error during model training: {str(e)}")
-            else:
-                logger.error("Failed to load default dataset")
+    # Always try to train with the default dataset first
+    if os.path.exists('adult 3.csv'):
+        logger.info("Loading default dataset...")
+        df = load_default_dataset()
+        if df is not None:
+            try:
+                # Train the model with the default dataset
+                logger.info("Training model with default dataset...")
+                train_result = train_model(df, is_default_dataset=True)
+                if 'error' in train_result:
+                    logger.error(f"Error training with default dataset: {train_result['error']}")
+                    raise Exception(train_result['error'])
+                    
+                logger.info("Successfully trained model with default dataset")
+                return "Ready (Trained with default dataset)"
+                
+            except Exception as e:
+                logger.error(f"Error training with default dataset: {str(e)}")
+                # Continue to try loading existing model if training fails
         else:
-            logger.error("Default dataset 'adult 3.csv' not found")
-            
-        # If we couldn't train with default dataset, try to load existing model
+            logger.error("Failed to load default dataset")
+    else:
+        logger.error("Default dataset 'adult 3.csv' not found")
+    
+    # If we couldn't train with default dataset, try to load existing model
+    try:
         if os.path.exists('model.joblib') and os.path.exists('encoders.joblib'):
             model = joblib.load('model.joblib')
             label_encoders = joblib.load('encoders.joblib')
@@ -118,18 +113,14 @@ def init_model():
             
             logger.info("Loaded existing model")
             return "Ready (Loaded existing model)"
-        
-        return "Not Trained (No dataset available and no existing model found)"
-        
     except Exception as e:
-        error_msg = f"Error initializing model: {str(e)}"
-        logger.error(error_msg)
-        return f"Error: {error_msg}"
-        return f"Error: {error_msg}"
+        logger.error(f"Error loading existing model: {str(e)}")
+    
+    return "Not Trained (No dataset available and no existing model found)"
 
 # Train model function
-def train_model(df):
-    global model, label_encoders, model_trained_on, model_accuracy
+def train_model(df, is_default_dataset=False):
+    global model, label_encoders, model_trained_on, model_accuracy, model_trained_with_default
     
     try:
         app.logger.info("Starting model training...")
@@ -164,18 +155,26 @@ def train_model(df):
         
         # Convert all object columns to string and trim whitespace
         for col in df_clean.select_dtypes(include='object').columns:
-            df_clean[col] = df_clean[col].astype(str).str.strip()
+            # Ensure we're working with pandas Series before calling string methods
+            if isinstance(df_clean[col], pd.Series):
+                df_clean[col] = df_clean[col].astype(str).str.strip()
+            else:
+                # If it's not a Series, convert it to one
+                df_clean[col] = pd.Series(df_clean[col]).astype(str).str.strip()
         
         # Label Encoding
         label_encoders = {}
         try:
-            for col in df_clean.select_dtypes(include='object').columns:
+            object_columns = df_clean.select_dtypes(include=['object']).columns
+            for col in object_columns:
                 le = LabelEncoder()
-                df_clean[col] = le.fit_transform(df_clean[col].astype(str))
+                # Ensure we're working with a pandas Series
+                col_data = df_clean[col] if isinstance(df_clean[col], pd.Series) else pd.Series(df_clean[col])
+                df_clean[col] = le.fit_transform(col_data.astype(str))
                 label_encoders[col] = le
         except Exception as e:
             error_msg = f"Error in label encoding: {str(e)}"
-            app.logger.error(error_msg)
+            app.logger.error(error_msg, exc_info=True)
             return {"error": error_msg}
         
         try:
@@ -223,7 +222,8 @@ def train_model(df):
                 metadata = {
                     'trained_on': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                     'accuracy': float(accuracy),  # Convert numpy.float64 to Python float
-                    'features': list(X.columns)
+                    'features': list(X.columns),
+                    'is_default_dataset': is_default_dataset
                 }
                 joblib.dump(metadata, 'model_metadata.joblib')
                 
@@ -234,7 +234,8 @@ def train_model(df):
                 return {
                     "message": "Model trained and saved successfully",
                     "accuracy": float(accuracy),
-                    "trained_on": model_trained_on
+                    "trained_on": model_trained_on,
+                    "is_default_dataset": is_default_dataset
                 }
                 
             except Exception as e:
@@ -281,19 +282,25 @@ def serve_static(path):
 # Model status endpoint
 @app.route('/api/model-status', methods=['GET'])
 def get_model_status():
-    global model_trained_on, model_accuracy
+    # Load metadata to check if model was trained with default dataset
+    is_default = False
+    if os.path.exists('model_metadata.joblib'):
+        try:
+            metadata = joblib.load('model_metadata.joblib')
+            is_default = metadata.get('is_default_dataset', False)
+        except Exception as e:
+            app.logger.error(f"Error loading model metadata: {str(e)}")
     
-    # If we don't have a trained model timestamp, try to initialize one
-    if model_trained_on is None:
-        status = init_model()
-    else:
-        status = "Ready"
-    
+    status = 'Ready (Trained with default dataset)' if is_default else 'Trained'
+    if not model_trained_on:
+        status = 'Not Trained'
+        
     return jsonify({
         'status': status,
-        'trained_on': model_trained_on or 'Never',
+        'trained_on': model_trained_on,
         'accuracy': model_accuracy,
-        'features': list(label_encoders.keys()) if label_encoders else []
+        'features': list(label_encoders.keys()) if label_encoders else [],
+        'is_default_dataset': is_default
     })
 
 @app.route('/api/train', methods=['POST'])
@@ -391,14 +398,30 @@ def train():
         
         # Train the model
         app.logger.info('Starting model training...')
-        result = train_model(df)
-        
-        if 'error' in result:
-            app.logger.error(f'Error in model training: {result["error"]}')
+        try:
+            # Log the first few rows of the dataframe for debugging
+            app.logger.info(f'Training data sample (first 2 rows):\n{df.head(2).to_dict(orient="records")}')
+            app.logger.info(f'DataFrame columns: {df.columns.tolist()}')
+            app.logger.info(f'DataFrame dtypes:\n{df.dtypes}')
+            
+            result = train_model(df)
+            
+            if 'error' in result:
+                error_msg = f'Error in model training: {result["error"]}'
+                app.logger.error(error_msg)
+                return jsonify({
+                    'status': 'error',
+                    'message': error_msg
+                }), 400
+                
+        except Exception as e:
+            error_msg = f'Unexpected error during model training: {str(e)}'
+            app.logger.error(error_msg, exc_info=True)
             return jsonify({
                 'status': 'error',
-                'message': result['error']
-            }), 400
+                'message': f'An unexpected error occurred during training: {str(e)}',
+                'error_type': type(e).__name__
+            }), 500
         
         app.logger.info(f'Model training completed successfully. Accuracy: {result["accuracy"]:.2f}')
             
