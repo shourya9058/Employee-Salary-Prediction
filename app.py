@@ -76,42 +76,51 @@ def load_default_dataset():
 
 def init_model():
     global model, label_encoders, model_trained_on, model_accuracy
+    
+    # Initialize global variables
+    model = None
+    label_encoders = {}
     model_trained_on = None
     model_accuracy = None
     
     try:
         logger.info("Initializing model...")
         
-        # Check if model files exist
-        model_exists = os.path.exists('model.joblib') and os.path.exists('encoders.joblib')
-        
-        # Always train with the default dataset when the server starts
+        # First, try to train with the default dataset
         if os.path.exists('adult 3.csv'):
             logger.info("Loading and processing default dataset...")
             df = load_default_dataset()
-            if df is not None:
+            if df is not None and not df.empty:
                 logger.info(f"Successfully loaded dataset with shape: {df.shape}")
                 logger.info("Training model with default dataset...")
-                train_model(df)
-                logger.info("Successfully trained model with default dataset")
-                return "Ready (Trained with default dataset)"
+                train_result = train_model(df)
+                if train_result and not isinstance(train_result, dict) or 'error' not in train_result:
+                    logger.info("Successfully trained model with default dataset")
+                    model_trained_on = datetime.now()
+                    return "Ready (Trained with default dataset)"
+                else:
+                    error_msg = train_result.get('error', 'Unknown error during training') if isinstance(train_result, dict) else 'Training failed'
+                    logger.error(f"Training failed: {error_msg}")
             else:
-                error_msg = "Failed to load default dataset"
+                error_msg = "Failed to load or process default dataset"
                 logger.error(error_msg)
-                if not model_exists:
-                    return f"Error: {error_msg} - No existing model found"
         else:
             error_msg = "Default dataset 'adult 3.csv' not found"
             logger.error(error_msg)
-            if not model_exists:
-                return f"Error: {error_msg} - No existing model found"
         
-        # If we couldn't train with default dataset, try to load existing model
-        if model_exists:
+        # If we get here, training failed or no dataset - try to load existing model
+        if os.path.exists('model.joblib') and os.path.exists('encoders.joblib'):
             logger.info("Loading existing model...")
             try:
                 model = joblib.load('model.joblib')
                 label_encoders = joblib.load('encoders.joblib')
+                
+                # Load metadata if exists
+                if os.path.exists('model_metadata.joblib'):
+                    metadata = joblib.load('model_metadata.joblib')
+                    model_trained_on = metadata.get('trained_on')
+                    model_accuracy = metadata.get('accuracy')
+                
                 logger.info("Successfully loaded existing model")
                 return "Ready (Loaded existing model)"
             except Exception as e:
@@ -119,33 +128,11 @@ def init_model():
                 logger.error(error_msg)
                 return f"Error: {error_msg}"
         
-        return "Error: Could not initialize model - no dataset or saved model found"
+        return "Not Trained (No dataset available and no existing model found)"
         
     except Exception as e:
         error_msg = f"Unexpected error in init_model: {str(e)}"
         logger.error(error_msg, exc_info=True)
-        return f"Error: {error_msg}"
-            
-        # If we couldn't train with default dataset, try to load existing model
-        if os.path.exists('model.joblib') and os.path.exists('encoders.joblib'):
-            model = joblib.load('model.joblib')
-            label_encoders = joblib.load('encoders.joblib')
-            
-            # Load metadata if exists
-            if os.path.exists('model_metadata.joblib'):
-                metadata = joblib.load('model_metadata.joblib')
-                model_trained_on = metadata.get('trained_on')
-                model_accuracy = metadata.get('accuracy')
-            
-            logger.info("Loaded existing model")
-            return "Ready (Loaded existing model)"
-        
-        return "Not Trained (No dataset available and no existing model found)"
-        
-    except Exception as e:
-        error_msg = f"Error initializing model: {str(e)}"
-        logger.error(error_msg)
-        return f"Error: {error_msg}"
         return f"Error: {error_msg}"
 
 # Train model function
