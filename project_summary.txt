@@ -1,0 +1,21 @@
+SALARY PREDICTION - PROJECT SUMMARY
+==================================================
+
+Dataset Size: 48,842 rows, 15 columns
+After Cleaning: 45,222 rows (92.6% of original)
+
+Key Metrics:
+--------------------------------------------------
+Accuracy: 80.40%
+Precision: 56.85%
+Recall: 86.80%
+F1-Score: 68.70%
+ROC AUC: 0.912
+
+Top 5 Most Important Features:
+--------------------------------------------------
+1. relationship: 0.2255
+2. marital-status: 0.1777
+3. educational-num: 0.1420
+4. capital-gain: 0.1130
+5. age: 0.0913

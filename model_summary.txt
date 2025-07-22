@@ -1,0 +1,32 @@
+SALARY PREDICTION - MODEL SUMMARY
+========================================
+
+Dataset Size: 48842 rows, 15 columns
+After Cleaning: 45222 rows
+
+Accuracy: 80.40%
+
+Classification Report:
+              precision    recall  f1-score   support
+
+       <=50K       0.95      0.78      0.86      6803
+        >50K       0.57      0.87      0.69      2242
+
+    accuracy                           0.80      9045
+   macro avg       0.76      0.83      0.77      9045
+weighted avg       0.85      0.80      0.82      9045
+
+Cross-Validation Accuracy: 80.46% (+/- 0.01%)
+
+Top 10 Features:
+            feature  importance
+7      relationship    0.225479
+5    marital-status    0.177665
+4   educational-num    0.142038
+10     capital-gain    0.112964
+0               age    0.091269
+14        age_group    0.054235
+12   hours-per-week    0.052210
+3         education    0.038921
+11     capital-loss    0.026191
+6        occupation    0.025672

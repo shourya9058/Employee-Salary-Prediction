@@ -45,7 +45,7 @@ async function checkModelStatus() {
         modelStatus.textContent = data.status || 'Not Trained';
         
         // Set status color based on state
-        if (data.status === 'Ready') {
+        if (data.status && data.status.startsWith('Ready')) {
             modelStatus.className = 'text-green-600 font-medium';
             // Only start checking periodically if model is ready
             modelCheckInterval = setInterval(checkModelStatus, 30000); // Check every 30 seconds
@@ -154,7 +154,7 @@ async function handlePrediction(e) {
     // Check if model is ready
     try {
         const status = await checkModelStatus();
-        if (status.status !== 'Ready') {
+        if (!status.status || !status.status.startsWith('Ready')) {
             showToast('Model is not ready. Please train the model first.', 'error');
             return;
         }

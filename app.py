@@ -57,7 +57,21 @@ def init_model():
     model_accuracy = None
     
     try:
-        # Try to load existing model first
+        # Always train with the default dataset when the server starts
+        if os.path.exists('adult 3.csv'):
+            logger.info("Training model with default dataset...")
+            df = load_default_dataset()
+            if df is not None:
+                # Train the model with the default dataset
+                train_model(df)
+                logger.info("Successfully trained model with default dataset")
+                return "Ready (Trained with default dataset)"
+            else:
+                logger.error("Failed to load default dataset")
+        else:
+            logger.error("Default dataset 'adult 3.csv' not found")
+            
+        # If we couldn't train with default dataset, try to load existing model
         if os.path.exists('model.joblib') and os.path.exists('encoders.joblib'):
             model = joblib.load('model.joblib')
             label_encoders = joblib.load('encoders.joblib')
@@ -69,22 +83,14 @@ def init_model():
                 model_accuracy = metadata.get('accuracy')
             
             logger.info("Loaded existing model")
-            return "Ready"
-            
-        # If no model exists, try to train with default dataset
-        if os.path.exists('adult 3.csv'):
-            logger.info("No existing model found. Training with default dataset...")
-            df = load_default_dataset()
-            if df is not None:
-                train_model(df)
-                logger.info("Successfully trained model with default dataset")
-                return "Ready (Trained with default dataset)"
+            return "Ready (Loaded existing model)"
         
-        return "Not Trained (No model found and default dataset not available)"
+        return "Not Trained (No dataset available and no existing model found)"
         
     except Exception as e:
         error_msg = f"Error initializing model: {str(e)}"
         logger.error(error_msg)
+        return f"Error: {error_msg}"
         return f"Error: {error_msg}"
 
 # Train model function
