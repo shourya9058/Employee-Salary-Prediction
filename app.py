@@ -290,28 +290,17 @@ def get_model_status():
     try:
         # Initialize default values
         is_default = False
-        trained_on = model_trained_on
         accuracy = model_accuracy
         features = []
+        
+        # Always use current server time for trained_on
+        trained_on = datetime.now().isoformat()
         
         # Try to load metadata if it exists
         if os.path.exists('model_metadata.joblib'):
             try:
                 metadata = joblib.load('model_metadata.joblib')
                 is_default = metadata.get('is_default_dataset', False)
-                
-                # Get the trained_on timestamp from metadata
-                metadata_trained_on = metadata.get('trained_on')
-                
-                # If we have a timestamp in metadata, use it
-                if metadata_trained_on:
-                    # If it's a timestamp (float), convert to ISO format string
-                    if isinstance(metadata_trained_on, (int, float)):
-                        from datetime import datetime
-                        trained_on = datetime.fromtimestamp(metadata_trained_on).isoformat()
-                    # If it's already a string, use it as is
-                    elif isinstance(metadata_trained_on, str):
-                        trained_on = metadata_trained_on
                 
                 # Update accuracy from metadata if not set
                 if accuracy is None:

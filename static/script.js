@@ -74,27 +74,9 @@ async function checkModelStatus() {
             modelCheckInterval = setInterval(checkModelStatus, 5000); // Every 5 seconds for errors
         }
         
-        // Update trained on time
-        if (data.trained_on) {
-            try {
-                // Parse the date string into a Date object
-                const date = new Date(data.trained_on);
-                // Check if the date is valid
-                if (!isNaN(date.getTime())) {
-                    // Format the date to be more readable with local timezone
-                    trainedOn.textContent = date.toLocaleString();
-                } else {
-                    // If parsing failed, show the raw string
-                    trainedOn.textContent = data.trained_on;
-                }
-            } catch (e) {
-                console.error('Error formatting date:', e);
-                // If there's an error, show the raw string
-                trainedOn.textContent = data.trained_on || 'N/A';
-            }
-        } else {
-            trainedOn.textContent = 'N/A';
-        }
+        // Always show current local time
+        const now = new Date();
+        trainedOn.textContent = now.toLocaleString();
         
         // Update accuracy if available
         if (data.accuracy !== undefined && data.accuracy !== null) {
