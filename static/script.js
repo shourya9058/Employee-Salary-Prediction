@@ -169,7 +169,8 @@ async function handlePrediction(e) {
     // Check if model is ready (after showing loader)
     try {
         const status = await checkModelStatus();
-        if (!status.status || !status.status.startsWith('Ready')) {
+        // Check if model is either 'Trained' or starts with 'Ready'
+        if (!status.status || (status.status !== 'Trained' && !status.status.startsWith('Ready'))) {
             hideLoading(); // Hide loader if model is not ready
             showToast('Model is not ready. Please train the model first.', 'error');
             return;

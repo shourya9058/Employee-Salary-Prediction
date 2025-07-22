@@ -243,6 +243,10 @@ def train_model(df, is_default_dataset=False):
                 # Update global variables
                 model_trained_on = metadata['trained_on']
                 model_accuracy = accuracy
+                model_trained_with_default = is_default_dataset
+                
+                # Log the update
+                app.logger.info(f"Global model variables updated. is_default_dataset: {is_default_dataset}")
                 
                 return {
                     "message": "Model trained and saved successfully",
@@ -446,7 +450,8 @@ def train():
             app.logger.info(f'DataFrame columns: {df.columns.tolist()}')
             app.logger.info(f'DataFrame dtypes:\n{df.dtypes}')
             
-            result = train_model(df)
+            # Set is_default_dataset to False for custom dataset uploads
+            result = train_model(df, is_default_dataset=False)
             
             if 'error' in result:
                 error_msg = f'Error in model training: {result["error"]}'
